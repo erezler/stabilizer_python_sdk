@@ -4,6 +4,7 @@ import json
 import time
 from dataclasses import dataclass
 from typing import Any, Protocol
+from urllib.parse import urlsplit
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -94,6 +95,11 @@ def _decode_response_body(body: bytes) -> Any:
         return text
 
 
+def _normalize_path(path: str) -> str:
+    normalized = urlsplit(path).path.rstrip("/")
+    return normalized or "/"
+
+
 class _BaseClient:
     def __init__(
         self,
@@ -162,7 +168,7 @@ class StabilizerClient(_BaseClient):
         self._sleeper = sleeper
 
     def _auth_headers(self, path: str) -> dict[str, str]:
-        if self.api_key and path not in PUBLIC_PATHS:
+        if self.api_key and _normalize_path(path) not in PUBLIC_PATHS:
             return {"Authorization": f"Bearer {self.api_key}"}
         return {}
 

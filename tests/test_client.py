@@ -68,6 +68,13 @@ def test_health_uses_public_base_url_without_auth_header() -> None:
     ]
 
 
+def test_public_routes_skip_auth_even_with_api_key_when_path_needs_normalization() -> None:
+    client = StabilizerClient(api_key="sk_test")
+
+    assert client._auth_headers("/v1/health/") == {}
+    assert client._auth_headers("/v1/supported-models?format=json") == {}
+
+
 def test_walkthrough_flow_posts_expected_payloads_with_bearer_auth() -> None:
     transport = FakeTransport(
         [
