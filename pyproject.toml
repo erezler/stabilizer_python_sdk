@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "stabilizer-python-sdk"
 version = "0.1.0"
-description = "Python SDK scaffold for Stabilizer."
+description = "Standalone Python SDK for the Stabilizer API."
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Stabilizer" }]
