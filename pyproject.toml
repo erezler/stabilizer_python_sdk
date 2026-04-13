@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stabilizer-python-sdk"
+version = "0.1.0"
+description = "Python SDK scaffold for Stabilizer."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Stabilizer" }]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
