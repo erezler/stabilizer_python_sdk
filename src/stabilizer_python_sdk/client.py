@@ -146,7 +146,7 @@ class _BaseClient:
         headers: dict[str, str] = {}
         if has_body:
             headers["Content-Type"] = "application/json"
-        headers.update(self._auth_headers(path))
+            headers.update(self._auth_headers(path))
         return headers
 
     def _auth_headers(self, path: str) -> dict[str, str]:
