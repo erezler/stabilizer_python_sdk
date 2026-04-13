@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import runpy
-
-import pytest
+import stabilizer_python_sdk.__main__ as cli
 
 
 def test_package_exposes_version() -> None:
@@ -11,9 +9,10 @@ def test_package_exposes_version() -> None:
     assert stabilizer_python_sdk.__version__ == "0.1.0"
 
 
-def test_module_entrypoint_prints_project_name(capsys: pytest.CaptureFixture[str]) -> None:
-    runpy.run_module("stabilizer_python_sdk", run_name="__main__")
+def test_module_entrypoint_main_returns_success_for_help(capsys) -> None:
+    exit_code = cli.main([])
 
     captured = capsys.readouterr()
 
-    assert captured.out.strip() == "stabilizer_python_sdk"
+    assert exit_code == 0
+    assert "usage:" in captured.out

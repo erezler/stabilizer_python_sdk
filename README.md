@@ -22,6 +22,35 @@ from stabilizer_python_sdk import StabilizerAdminClient, StabilizerClient
 
 The SDK is synchronous and dependency-free. It uses the Python standard library HTTP stack.
 
+## Terminal Usage
+
+Install locally:
+
+```powershell
+py -m pip install -e .
+```
+
+Run public commands:
+
+```powershell
+py -m stabilizer_python_sdk health
+py -m stabilizer_python_sdk models
+```
+
+Run workflow commands from JSON payload files:
+
+```powershell
+py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile.json
+py -m stabilizer_python_sdk extract --api-key YOUR_STABILIZER_API_KEY --payload-file .\extract.json
+```
+
+To wait for the async job to finish:
+
+```powershell
+py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile.json --wait --timeout 600
+py -m stabilizer_python_sdk extract --api-key YOUR_STABILIZER_API_KEY --payload-file .\extract.json --wait --timeout 600
+```
+
 ## Walkthrough Example
 
 ```python
