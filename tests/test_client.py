@@ -75,6 +75,24 @@ def test_public_routes_skip_auth_even_with_api_key_when_path_needs_normalization
     assert client._auth_headers("/v1/supported-models?format=json") == {}
 
 
+def test_non_public_get_routes_include_bearer_auth_without_request_body() -> None:
+    transport = FakeTransport([ResponseEnvelope(status_code=200, data={"org_id": "org_123"})])
+    client = StabilizerClient(api_key="sk_test", transport=transport)
+
+    response = client.get_org()
+
+    assert response == {"org_id": "org_123"}
+    assert transport.requests == [
+        RecordedRequest(
+            method="GET",
+            url="https://stabilizerapi.documentinsight.ai/api/v1/org",
+            headers={"Authorization": "Bearer sk_test"},
+            json_body=None,
+            timeout=30.0,
+        )
+    ]
+
+
 def test_walkthrough_flow_posts_expected_payloads_with_bearer_auth() -> None:
     transport = FakeTransport(
         [
@@ -207,6 +225,24 @@ def test_admin_client_uses_admin_header_for_admin_routes() -> None:
                 "X-Admin-API-Key": "adm_test",
             },
             json_body={"name": "Acme"},
+            timeout=30.0,
+        )
+    ]
+
+
+def test_admin_client_includes_admin_header_without_request_body() -> None:
+    transport = FakeTransport([ResponseEnvelope(status_code=200, data={"items": []})])
+    client = StabilizerAdminClient(admin_api_key="adm_test", transport=transport)
+
+    response = client.list_orgs()
+
+    assert response == {"items": []}
+    assert transport.requests == [
+        RecordedRequest(
+            method="GET",
+            url="https://stabilizerapi.documentinsight.ai/api/v1/admin/orgs",
+            headers={"X-Admin-API-Key": "adm_test"},
+            json_body=None,
             timeout=30.0,
         )
     ]

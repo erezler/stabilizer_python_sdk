@@ -80,6 +80,19 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Maximum seconds to wait when --wait is used.",
     )
 
+    wait_parser = subparsers.add_parser(
+        "wait",
+        help="Poll an existing job ID until completion.",
+    )
+    wait_parser.add_argument("--api-key", required=True, help="Stabilizer API key.")
+    wait_parser.add_argument("--job-id", required=True, help="Existing job ID to poll.")
+    wait_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=600.0,
+        help="Maximum seconds to wait for the job to finish.",
+    )
+
     return parser
 
 
@@ -114,6 +127,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             result = client.extract(_read_payload(parsed.payload_file))
             if parsed.wait:
                 result = client.wait_for_job(result["job_id"], timeout=parsed.timeout)
+            _print_json(result)
+            return 0
+
+        if parsed.command == "wait":
+            client = _make_client(api_key=parsed.api_key)
+            result = client.wait_for_job(parsed.job_id, timeout=parsed.timeout)
             _print_json(result)
             return 0
     except (ApiError, OSError, ValueError, json.JSONDecodeError, TimeoutError) as exc:

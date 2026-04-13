@@ -142,3 +142,35 @@ def test_extract_command_loads_payload_file_and_prints_queued_job(
     assert exit_code == 0
     assert json.loads(captured.out) == {"job_id": "job_extract", "status": "queued"}
     assert fake_client.calls == [("extract", payload)]
+
+
+def test_wait_command_polls_existing_job_id(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient(api_key="sk_test")
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(
+        [
+            "wait",
+            "--api-key",
+            "sk_test",
+            "--job-id",
+            "job_123",
+            "--timeout",
+            "90",
+        ]
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {
+        "job_id": "job_123",
+        "status": "completed",
+        "result": {"ok": True},
+    }
+    assert fake_client.calls == [
+        ("wait_for_job", {"job_id": "job_123", "timeout": 90.0}),
+    ]

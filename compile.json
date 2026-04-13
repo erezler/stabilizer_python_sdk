@@ -1,0 +1,84 @@
+{
+  "name": "Event details extractor",
+  "description": "Extracts event details from text",
+  "tags": ["events", "walkthrough"],
+  "prompt": "Extract the event details into JSON.\nRules:\n- `event_title`: exact title as written in the source text.\n- `start_date`: convert the event date to ISO format `YYYY-MM-DD`.\n- `ticket_price_usd`: numeric value only, with no currency symbol.\n- `audience_rating`: must be one of `general`, `teen`, or `adult`.\n- `has_live_music`: boolean only (`true` or `false`).\n- `sponsor_name`: exact sponsor name only if it is explicitly mentioned; otherwise return null.\n- Do not invent missing values.\n- Return only valid JSON matching the schema.",
+  "json_structure": {
+    "event_title": "string",
+    "start_date": "string",
+    "ticket_price_usd": "number",
+    "audience_rating": "string",
+    "has_live_music": "boolean",
+    "sponsor_name": "string|null"
+  },
+  "training_data": [
+    {
+      "source_text": "The Midnight Market opens at Union Yard on October 3, 2026. Admission is $12. The notice says it is suitable for all ages. No live music is scheduled. The event is supported by Ember Bank.",
+      "extracted_json": {
+        "event_title": "Midnight Market",
+        "start_date": "2026-10-03",
+        "ticket_price_usd": 12,
+        "audience_rating": "general",
+        "has_live_music": false,
+        "sponsor_name": "Ember Bank"
+      }
+    },
+    {
+      "source_text": "The After Dark Film Expo will be held on November 21, 2026, at the Old Foundry Hall. Tickets are priced at $25. Due to mature screening themes, the listing marks the event for adults only. A live synth set follows the final screening. No sponsor is named in the announcement.",
+      "extracted_json": {
+        "event_title": "After Dark Film Expo",
+        "start_date": "2026-11-21",
+        "ticket_price_usd": 25,
+        "audience_rating": "adult",
+        "has_live_music": true,
+        "sponsor_name": null
+      }
+    },
+    {
+      "source_text": "Riverfront Makers Day is scheduled for August 9, 2026. Entry costs $7. The flyer says the program is recommended for ages 13 and up. Acoustic performers will play throughout the afternoon. The event is presented by Lantern Mobile.",
+      "extracted_json": {
+        "event_title": "Riverfront Makers Day",
+        "start_date": "2026-08-09",
+        "ticket_price_usd": 7,
+        "audience_rating": "teen",
+        "has_live_music": true,
+        "sponsor_name": "Lantern Mobile"
+      }
+    },
+    {
+      "source_text": "Skyline Board Game Night starts on December 5, 2026, at Civic Loft. Tickets are $9. The poster says it is open to all ages. A house DJ will play between tournament rounds. The event is backed by Cedar Street Bank.",
+      "extracted_json": {
+        "event_title": "Skyline Board Game Night",
+        "start_date": "2026-12-05",
+        "ticket_price_usd": 9,
+        "audience_rating": "general",
+        "has_live_music": true,
+        "sponsor_name": "Cedar Street Bank"
+      }
+    },
+    {
+      "source_text": "The Neon Comics Swap lands at Warehouse Annex on July 18, 2026. Admission is $14. The listing recommends the late session for teens. No live music will be part of the program. The event announcement does not mention a sponsor.",
+      "extracted_json": {
+        "event_title": "Neon Comics Swap",
+        "start_date": "2026-07-18",
+        "ticket_price_usd": 14,
+        "audience_rating": "teen",
+        "has_live_music": false,
+        "sponsor_name": null
+      }
+    }
+  ],
+  "grounding_methods": [
+    "hard_grounding",
+    "soft_grounding",
+    "intent_verification",
+    "constraints_validation",
+    "coverage_check",
+    "fabrication_hardening",
+    "coherence_overview",
+    "stress_test"
+  ],
+  "compile_options": {
+    "num_prompt_variations": 3
+  }
+}

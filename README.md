@@ -49,6 +49,7 @@ To wait for the async job to finish:
 ```powershell
 py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile.json --wait --timeout 600
 py -m stabilizer_python_sdk extract --api-key YOUR_STABILIZER_API_KEY --payload-file .\extract.json --wait --timeout 600
+py -m stabilizer_python_sdk wait --api-key YOUR_STABILIZER_API_KEY --job-id job_123 --timeout 600
 ```
 
 ## Walkthrough Example

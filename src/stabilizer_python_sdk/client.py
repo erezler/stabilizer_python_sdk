@@ -143,10 +143,9 @@ class _BaseClient:
         return response.data
 
     def _build_headers(self, path: str, has_body: bool) -> dict[str, str]:
-        headers: dict[str, str] = {}
+        headers = self._auth_headers(path)
         if has_body:
             headers["Content-Type"] = "application/json"
-            headers.update(self._auth_headers(path))
         return headers
 
     def _auth_headers(self, path: str) -> dict[str, str]:
