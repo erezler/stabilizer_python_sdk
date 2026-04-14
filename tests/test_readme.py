@@ -21,11 +21,12 @@ def test_readme_documents_sdk_usage_paths() -> None:
     assert "--poll-timeout" in readme
 
     assert "py -m stabilizer_python_sdk optimize" in readme
+    assert "py -m stabilizer_python_sdk config" in readme
     assert "py -m stabilizer_python_sdk compile" in readme
     assert "py -m stabilizer_python_sdk extract" in readme
-    assert "py -m stabilizer_python_sdk wait" in readme
     assert "py -m stabilizer_python_sdk poll" in readme
     assert "py -m stabilizer_python_sdk state list" in readme
     assert "py -m stabilizer_python_sdk state latest" in readme
+    assert "config.json" in readme
 
     assert "run only the commands you need" in readme.lower()

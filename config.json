@@ -1,0 +1,6 @@
+{
+  "name": "Primary config",
+  "provider": "openai",
+  "default_model": "google/gemini-2.5-flash-lite",
+  "is_default": true
+}

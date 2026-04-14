@@ -24,6 +24,10 @@ class FakeClient:
         self.calls.append(("supported_models", None))
         return {"models": ["google/gemini-2.5-flash-lite"]}
 
+    def create_llm_config(self, payload: dict[str, object]) -> dict[str, object]:
+        self.calls.append(("create_llm_config", payload))
+        return {"config_id": "cfg_123", "status": "created"}
+
     def compile_function(self, payload: dict[str, object]) -> dict[str, object]:
         self.calls.append(("compile_function", payload))
         return {"job_id": "job_compile", "status": "queued"}
@@ -60,8 +64,10 @@ def test_main_without_args_prints_help(capsys: pytest.CaptureFixture[str]) -> No
     assert "usage:" in captured.out
     assert "health" in captured.out
     assert "models" in captured.out
+    assert "config" in captured.out
     assert "compile" in captured.out
     assert "extract" in captured.out
+    assert "wait" not in captured.out
 
 
 def _write_state(
@@ -139,6 +145,42 @@ def test_models_command_prints_json(
     assert fake_client.calls == [("supported_models", None)]
 
 
+def test_config_command_uses_default_config_file_and_allows_missing_provider_key(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload = {
+        "name": "Primary config",
+        "provider": "openai",
+        "default_model": "google/gemini-2.5-flash-lite",
+        "is_default": True,
+    }
+    (tmp_path / "config.json").write_text(json.dumps(payload), encoding="utf-8")
+    (tmp_path / ".env.local").write_text("STABILIZER_API_KEY=sk_from_env\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("STABILIZER_API_KEY", raising=False)
+    monkeypatch.delenv("STABILIZER_PROVIDER_API_KEY", raising=False)
+    reloaded = importlib.reload(cli)
+    fake_client = FakeClient(api_key="sk_from_env")
+    captured_api_keys: list[str | None] = []
+
+    def fake_make_client(api_key=None):
+        captured_api_keys.append(api_key)
+        return fake_client
+
+    monkeypatch.setattr(reloaded, "_make_client", fake_make_client)
+
+    exit_code = reloaded.main(["config"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"config_id": "cfg_123", "status": "created"}
+    assert captured_api_keys == ["sk_from_env"]
+    assert fake_client.calls == [("create_llm_config", payload)]
+
+
 def test_compile_command_uses_api_key_from_env_local(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,
@@ -174,53 +216,6 @@ def test_compile_command_uses_api_key_from_env_local(
     assert json.loads(captured.out) == {"job_id": "job_compile", "status": "queued"}
     assert captured_api_keys == ["sk_from_env"]
     assert fake_client.calls == [("compile_function", payload)]
-
-
-def test_poll_command_uses_api_key_from_env_local(
-    tmp_path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    (tmp_path / ".env.local").write_text("STABILIZER_API_KEY=sk_from_env\n", encoding="utf-8")
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("STABILIZER_API_KEY", raising=False)
-    reloaded = importlib.reload(cli)
-    fake_client = FakeClient(api_key="sk_from_env")
-    fake_client.set_job_sequence(
-        "job_75b0bf3c5d5541f0a52a",
-        [
-            {
-                "job_id": "job_75b0bf3c5d5541f0a52a",
-                "status": "completed",
-                "progress": 100,
-                "result": {"ok": True},
-            }
-        ],
-    )
-    captured_api_keys: list[str | None] = []
-
-    def fake_make_client(api_key=None):
-        captured_api_keys.append(api_key)
-        return fake_client
-
-    monkeypatch.setattr(reloaded, "_make_client", fake_make_client)
-    monkeypatch.setattr(reloaded.time, "sleep", lambda _seconds: None)
-
-    exit_code = reloaded.main(
-        [
-            "poll",
-            "--job",
-            "job_75b0bf3c5d5541f0a52a",
-            "--timeout",
-            "90",
-        ]
-    )
-
-    captured = capsys.readouterr()
-
-    assert exit_code == 0
-    assert captured_api_keys == ["sk_from_env"]
-    assert "100%" in captured.out
 
 
 def test_compile_command_errors_when_api_key_missing_everywhere(
@@ -538,38 +533,6 @@ def test_state_file_name_prints_specific_state_ids(
     }
 
 
-def test_wait_command_polls_existing_job_id(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    fake_client = FakeClient(api_key="sk_test")
-    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
-
-    exit_code = cli.main(
-        [
-            "wait",
-            "--api-key",
-            "sk_test",
-            "--job-id",
-            "job_123",
-            "--timeout",
-            "90",
-        ]
-    )
-
-    captured = capsys.readouterr()
-
-    assert exit_code == 0
-    assert json.loads(captured.out) == {
-        "job_id": "job_123",
-        "status": "completed",
-        "result": {"ok": True},
-    }
-    assert fake_client.calls == [
-        ("wait_for_job", {"job_id": "job_123", "timeout": 90.0}),
-    ]
-
-
 def test_poll_command_polls_existing_job_id(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -622,32 +585,3 @@ def test_poll_command_polls_existing_job_id(
         ("get_job", {"job_id": "job_75b0bf3c5d5541f0a52a"}),
         ("get_job", {"job_id": "job_75b0bf3c5d5541f0a52a"}),
     ]
-
-
-def test_poll_command_polls_existing_job_id_quiet_alias_old_behavior_removed(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    fake_client = FakeClient(api_key="sk_test")
-    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
-
-    exit_code = cli.main(
-        [
-            "wait",
-            "--api-key",
-            "sk_test",
-            "--job-id",
-            "job_75b0bf3c5d5541f0a52a",
-            "--timeout",
-            "90",
-        ]
-    )
-
-    captured = capsys.readouterr()
-
-    assert exit_code == 0
-    assert json.loads(captured.out) == {
-        "job_id": "job_75b0bf3c5d5541f0a52a",
-        "status": "completed",
-        "result": {"ok": True},
-    }

@@ -10,8 +10,10 @@ from pathlib import Path
 from typing import Any
 
 from stabilizer_python_sdk import ApiError, StabilizerClient
+from stabilizer_python_sdk.config import LLMConfigRequest
 
 DEFAULT_TEMP_DB_DIR = Path("temp_db")
+DEFAULT_CONFIG_FILE = Path("config.json")
 DEFAULT_POLL_INTERVAL = 2.0
 TERMINAL_JOB_STATUSES = frozenset({"completed", "failed"})
 
@@ -173,6 +175,17 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("health", help="Run GET /v1/health.")
     subparsers.add_parser("models", help="Run GET /v1/supported-models.")
 
+    config_parser = subparsers.add_parser(
+        "config",
+        help="Run POST /v1/llm-configs with a JSON payload file.",
+    )
+    config_parser.add_argument("--api-key", help="Stabilizer API key.")
+    config_parser.add_argument(
+        "--payload-file",
+        default=str(DEFAULT_CONFIG_FILE),
+        help="Path to a JSON file for the config request body.",
+    )
+
     optimize_parser = subparsers.add_parser(
         "optimize",
         help="Run POST /v1/prompt-optimizations with a JSON payload file.",
@@ -251,19 +264,6 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Maximum seconds to wait when --wait is used.",
     )
 
-    wait_parser = subparsers.add_parser(
-        "wait",
-        help="Poll an existing job ID until completion.",
-    )
-    wait_parser.add_argument("--api-key", help="Stabilizer API key.")
-    wait_parser.add_argument("--job-id", required=True, help="Existing job ID to poll.")
-    wait_parser.add_argument(
-        "--timeout",
-        type=float,
-        default=600.0,
-        help="Maximum seconds to wait for the job to finish.",
-    )
-
     poll_parser = subparsers.add_parser(
         "poll",
         help="Poll an existing job until completion.",
@@ -313,6 +313,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if parsed.command == "models":
             _print_json(_make_client().supported_models())
+            return 0
+
+        if parsed.command == "config":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            result = client.create_llm_config(
+                LLMConfigRequest.from_payload(_read_payload(parsed.payload_file)).as_payload()
+            )
+            _print_json(result)
             return 0
 
         if parsed.command == "optimize":

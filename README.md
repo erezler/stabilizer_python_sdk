@@ -38,12 +38,12 @@ STABILIZER_PROVIDER_API_KEY=YOUR_PROVIDER_API_KEY
 
 PowerShell:
 
-This is required, even if using BYOK option:
+This is required for authenticated commands:
 ```powershell
 $env:STABILIZER_API_KEY = "YOUR_STABILIZER_API_KEY"
 ```
 
-If you want the workflow config to use BYOK:
+If you want the workflow config to use BYOK (in addition to the above):
 
 ```powershell
 $env:STABILIZER_PROVIDER_API_KEY = "YOUR_PROVIDER_API_KEY"
@@ -92,11 +92,13 @@ print(state)
 
 ## Workflow Payload Files
 
+`config.json` should contain the LLM config request, including `name`, `provider`, `default_model`, `is_default`, and optional `api_key`.
 `compile.json` should contain the function creation request, including the prompt, schema, and training data. `extract.json` should contain the extraction request, including `function_id`, `source_text`, and optional `options`.
 
 The files included in this repository are ready to use as examples:
 
 ```powershell
+py -m stabilizer_python_sdk.config --api-key YOUR_STABILIZER_API_KEY --payload-file .\config.json
 py -m stabilizer_python_sdk.run_me --api-key YOUR_STABILIZER_API_KEY --compile-payload-file .\compile.json --extract-payload-file .\extract.json
 ```
 
@@ -107,10 +109,10 @@ Run only the commands you need, in any order.
 ```powershell
 py -m stabilizer_python_sdk health
 py -m stabilizer_python_sdk models
+py -m stabilizer_python_sdk config --api-key YOUR_STABILIZER_API_KEY
 py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile.json --config cfg_123
 py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile.json --config cfg_123
 py -m stabilizer_python_sdk extract --api-key YOUR_STABILIZER_API_KEY --payload-file .\extract.json --function fn_123
-py -m stabilizer_python_sdk wait --api-key YOUR_STABILIZER_API_KEY --job-id job_123 --timeout 600
 py -m stabilizer_python_sdk poll --api-key YOUR_STABILIZER_API_KEY --job job_123 --timeout 600
 py -m stabilizer_python_sdk state latest
 py -m stabilizer_python_sdk state list
@@ -118,7 +120,7 @@ py -m stabilizer_python_sdk state list
 
 Notes:
 
-`optimize`, `compile`, `extract`, `wait`, and `poll` require an API key from `--api-key`, `STABILIZER_API_KEY`, or `.env.local`.
+`config`, `optimize`, `compile`, `extract`, and `poll` require an API key from `--api-key`, `STABILIZER_API_KEY`, or `.env.local`.
 
 `state latest` reads the newest saved workflow state file under `temp_db`. `state list` shows a short summary of the most recent saved state files.
 
