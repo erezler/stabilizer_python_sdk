@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import importlib
 import io
 import json
 from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
 
+import stabilizer_python_sdk.run_me as run_me
 from stabilizer_python_sdk.compile import CompileRequest, run_compile_step
 from stabilizer_python_sdk.config import LLMConfigRequest, run_config_step
 from stabilizer_python_sdk.extract import ExtractOptions, ExtractRequest
@@ -248,3 +250,141 @@ def test_run_all_loads_requests_updates_same_state_file_and_uses_compiled_functi
     assert "poll_history" not in saved_state["steps"]["optimize"]
     assert "100%" in output.getvalue()
     assert "\x1b[" in output.getvalue()
+
+
+def test_run_me_loads_env_local_into_defaults(monkeypatch, tmp_path: Path) -> None:
+    env_file = tmp_path / ".env.local"
+    env_file.write_text(
+        "STABILIZER_API_KEY=sk_from_file\n"
+        "STABILIZER_PROVIDER_API_KEY=provider_from_file\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("STABILIZER_API_KEY", raising=False)
+    monkeypatch.delenv("STABILIZER_PROVIDER_API_KEY", raising=False)
+
+    reloaded = importlib.reload(run_me)
+
+    assert reloaded._default_api_key() == "sk_from_file"
+    assert reloaded._default_provider_api_key() == "provider_from_file"
+    settings = reloaded.RunMeSettings()
+    assert settings.api_key == "sk_from_file"
+    assert settings.config_request.api_key == "provider_from_file"
+
+
+def test_run_all_new_run_ignores_latest_saved_state_file(tmp_path: Path) -> None:
+    client = FakeWorkflowRunClient()
+    output = io.StringIO()
+    console = WorkflowConsole(stream=output)
+    compile_payload_path = tmp_path / "compile.json"
+    extract_payload_path = tmp_path / "extract.json"
+    temp_db_dir = tmp_path / "temp_db"
+    temp_db_dir.mkdir()
+    existing_state_file = temp_db_dir / "2026-04-14-08-30-44.json"
+    existing_state_file.write_text(
+        json.dumps(
+            {
+                "created_at": "2026-04-14-08-30-44",
+                "updated_at": "2026-04-14-08-30-44",
+                "steps": {
+                    "config": {
+                        "config_id": "cfg_old",
+                        "request": {"name": "Old"},
+                        "result": {"config_id": "cfg_old"},
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    compile_payload_path.write_text(
+        json.dumps(
+            {
+                "name": "Event details extractor",
+                "description": "Extracts event details from text",
+                "tags": ["events", "walkthrough"],
+                "prompt": "Extract event details",
+                "json_structure": {"event_title": "string"},
+                "training_data": [
+                    {
+                        "source_text": "The event is tomorrow.",
+                        "extracted_json": {"event_title": "Tomorrow Event"},
+                    }
+                ],
+                "grounding_methods": ["hard_grounding", "constraints_validation"],
+                "compile_options": {"num_prompt_variations": 3},
+            }
+        ),
+        encoding="utf-8",
+    )
+    extract_payload_path.write_text(
+        json.dumps(
+            {
+                "function_id": "fn_replace_me",
+                "source_text": "The Harbor Lights Food Fair returns tomorrow.",
+                "options": {"num_results": 3},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    run_all(
+        settings=RunMeSettings(
+            api_key="sk_test",
+            temp_db_dir=temp_db_dir,
+            config_request=LLMConfigRequest(
+                name="Primary config",
+                provider="openai",
+                api_key="provider-key",
+                default_model="openai/gpt-5.4-mini",
+                is_default=True,
+            ),
+            compile_payload_file=compile_payload_path,
+            extract_payload_file=extract_payload_path,
+            poll_interval=0.0,
+            poll_timeout=30.0,
+            new_run=True,
+        ),
+        client=client,
+        console=console,
+        now_provider=_fixed_now,
+        sleeper=lambda _seconds: None,
+    )
+
+    new_state_file = temp_db_dir / "2026-04-14-08-30-45.json"
+
+    assert existing_state_file.exists()
+    assert new_state_file.exists()
+    saved_state = json.loads(new_state_file.read_text(encoding="utf-8"))
+    assert saved_state["steps"]["config"]["config_id"] == "cfg_123"
+
+
+def test_main_passes_new_flag_into_settings(monkeypatch, tmp_path: Path) -> None:
+    captured: dict[str, object] = {}
+    compile_payload_path = tmp_path / "compile.json"
+    extract_payload_path = tmp_path / "extract.json"
+    compile_payload_path.write_text("{}", encoding="utf-8")
+    extract_payload_path.write_text("{}", encoding="utf-8")
+
+    def fake_run_all(*, settings, **_kwargs):
+        captured["settings"] = settings
+        return {}
+
+    monkeypatch.setattr(run_me, "run_all", fake_run_all)
+
+    exit_code = run_me.main(
+        [
+            "--new",
+            "--api-key",
+            "sk_test",
+            "--compile-payload-file",
+            str(compile_payload_path),
+            "--extract-payload-file",
+            str(extract_payload_path),
+        ]
+    )
+
+    assert exit_code == 0
+    settings = captured["settings"]
+    assert isinstance(settings, run_me.RunMeSettings)
+    assert settings.new_run is True

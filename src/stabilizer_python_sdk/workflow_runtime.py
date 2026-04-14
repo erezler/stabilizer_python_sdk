@@ -65,6 +65,7 @@ def resolve_state_file(
     *,
     state_file: str | Path | None,
     temp_db_dir: str | Path,
+    force_new: bool = False,
     now_provider: LatestStatePathResolver = default_now_provider,
 ) -> Path:
     if state_file is not None:
@@ -72,6 +73,8 @@ def resolve_state_file(
 
     temp_db_path = Path(temp_db_dir)
     temp_db_path.mkdir(parents=True, exist_ok=True)
+    if force_new:
+        return temp_db_path / f"{timestamp_string(now_provider)}.json"
     existing = sorted(path for path in temp_db_path.glob("*.json") if path.is_file())
     if existing:
         return existing[-1]

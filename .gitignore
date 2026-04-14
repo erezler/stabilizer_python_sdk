@@ -1,8 +1,10 @@
 __pycache__/
 .pytest_cache/
 .env/
+.env.local
 .venv/
 *.py[cod]
 dist/
 build/
 *.egg-info/
+temp_db/
