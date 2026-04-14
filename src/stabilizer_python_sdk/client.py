@@ -100,6 +100,15 @@ def _normalize_path(path: str) -> str:
     return normalized or "/"
 
 
+def _coerce_json_body(payload: object | None) -> object | None:
+    if payload is None:
+        return None
+    as_payload = getattr(payload, "as_payload", None)
+    if callable(as_payload):
+        return as_payload()
+    return payload
+
+
 class _BaseClient:
     def __init__(
         self,
@@ -197,7 +206,7 @@ class StabilizerClient(_BaseClient):
         return self._request("GET", "/v1/llm-configs")
 
     def create_llm_config(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request("POST", "/v1/llm-configs", json_body=payload)
+        return self._request("POST", "/v1/llm-configs", json_body=_coerce_json_body(payload))
 
     def update_llm_config(self, config_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._request("PATCH", f"/v1/llm-configs/{config_id}", json_body=payload)
@@ -220,13 +229,13 @@ class StabilizerClient(_BaseClient):
         return None
 
     def compile_function(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request("POST", "/v1/functions", json_body=payload)
+        return self._request("POST", "/v1/functions", json_body=_coerce_json_body(payload))
 
     def optimize_prompt(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request("POST", "/v1/prompt-optimizations", json_body=payload)
+        return self._request("POST", "/v1/prompt-optimizations", json_body=_coerce_json_body(payload))
 
     def extract(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request("POST", "/v1/extract", json_body=payload)
+        return self._request("POST", "/v1/extract", json_body=_coerce_json_body(payload))
 
     def list_extractions(self) -> list[dict[str, Any]]:
         return self._request("GET", "/v1/extractions")
