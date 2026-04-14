@@ -23,25 +23,27 @@ class SupportsConfigClient(Protocol):
 class LLMConfigRequest:
     name: str
     provider: str
-    api_key: str
     default_model: str
+    api_key: str | None = None
     is_default: bool = False
 
     def as_payload(self) -> dict[str, Any]:
-        return {
+        payload = {
             "name": self.name,
             "provider": self.provider,
-            "api_key": self.api_key,
             "default_model": self.default_model,
             "is_default": self.is_default,
         }
+        if self.api_key not in (None, ""):
+            payload["api_key"] = self.api_key
+        return payload
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> LLMConfigRequest:
         return cls(
             name=str(payload["name"]),
             provider=str(payload["provider"]),
-            api_key=str(payload["api_key"]),
+            api_key=str(payload["api_key"]) if payload.get("api_key") is not None else None,
             default_model=str(payload["default_model"]),
             is_default=bool(payload.get("is_default", False)),
         )
@@ -52,7 +54,7 @@ def create_llm_config(
     *,
     name: str,
     provider: str,
-    api_key: str,
+    api_key: str | None = None,
     default_model: str,
     is_default: bool = False,
 ) -> dict[str, Any]:

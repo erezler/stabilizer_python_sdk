@@ -32,17 +32,18 @@ STABILIZER_API_KEY=YOUR_STABILIZER_API_KEY
 STABILIZER_PROVIDER_API_KEY=YOUR_PROVIDER_API_KEY
 ```
 
-The `run_me` workflow also reads `STABILIZER_PROVIDER_API_KEY` from `.env.local` when it creates the default LLM config request.
+`STABILIZER_PROVIDER_API_KEY` is optional. Set it only when you want the workflow config to use BYOK for the provider.
 
 ### Option 2: Terminal Session Variable
 
 PowerShell:
 
+This is required, even if using BYOK option:
 ```powershell
 $env:STABILIZER_API_KEY = "YOUR_STABILIZER_API_KEY"
 ```
 
-If you also need a provider key for the workflow:
+If you want the workflow config to use BYOK:
 
 ```powershell
 $env:STABILIZER_PROVIDER_API_KEY = "YOUR_PROVIDER_API_KEY"

@@ -274,7 +274,7 @@ def test_run_me_loads_env_local_into_defaults(monkeypatch, tmp_path: Path) -> No
     assert settings.config_request.api_key == "provider_from_file"
 
 
-def test_run_all_requires_provider_api_key_for_byok_workflow(
+def test_run_all_runs_without_provider_api_key_for_byok_optional_workflow(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -313,23 +313,36 @@ def test_run_all_requires_provider_api_key_for_byok_workflow(
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="STABILIZER_PROVIDER_API_KEY"):
-        run_all(
-            settings=RunMeSettings(
-                api_key="sk_test",
-                temp_db_dir=temp_db_dir,
-                compile_payload_file=compile_payload_path,
-                extract_payload_file=extract_payload_path,
-                poll_interval=0.0,
-                poll_timeout=30.0,
-            ),
-            client=client,
-            console=console,
-            now_provider=_fixed_now,
-            sleeper=lambda _seconds: None,
-        )
+    state = run_all(
+        settings=RunMeSettings(
+            api_key="sk_test",
+            temp_db_dir=temp_db_dir,
+            compile_payload_file=compile_payload_path,
+            extract_payload_file=extract_payload_path,
+            poll_interval=0.0,
+            poll_timeout=30.0,
+        ),
+        client=client,
+        console=console,
+        now_provider=_fixed_now,
+        sleeper=lambda _seconds: None,
+    )
 
-    assert client.config_calls == []
+    assert state["steps"]["config"]["request"] == {
+        "name": "Primary config",
+        "provider": "openai",
+        "default_model": "google/gemini-2.5-flash-lite",
+        "is_default": True,
+    }
+    assert client.config_calls == [
+        {
+            "name": "Primary config",
+            "provider": "openai",
+            "default_model": "google/gemini-2.5-flash-lite",
+            "is_default": True,
+        }
+    ]
+    assert run_me.RunMeSettings().config_request.api_key == ""
 
 
 def test_run_all_new_run_ignores_latest_saved_state_file(tmp_path: Path) -> None:
