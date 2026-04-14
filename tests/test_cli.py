@@ -604,13 +604,14 @@ def test_poll_command_polls_existing_job_id(
     )
 
     captured = capsys.readouterr()
-    output_lines = captured.out.strip().splitlines()
+    output = captured.out
 
     assert exit_code == 0
-    assert "10%" in output_lines[0]
-    assert "65%" in output_lines[1]
-    assert "100%" in output_lines[2]
-    assert json.loads("\n".join(output_lines[3:])) == {
+    assert "\rProgress: 10% (queued)" in output
+    assert "\rProgress: 65% (running)" in output
+    assert "\rProgress: 100% (completed)" in output
+    assert "\n{\n" in output
+    assert json.loads(output.split("\n", 1)[1]) == {
         "job_id": "job_75b0bf3c5d5541f0a52a",
         "status": "completed",
         "progress": 100,

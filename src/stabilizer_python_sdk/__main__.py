@@ -139,17 +139,26 @@ def _poll_job_with_progress(
     poll_interval: float = DEFAULT_POLL_INTERVAL,
 ) -> dict[str, Any]:
     deadline = time.monotonic() + timeout
+    last_line_length = 0
     while True:
         job = client.get_job(job_id)
         status = str(job.get("status", "")).lower()
         progress = job.get("progress")
         if isinstance(progress, (int, float)):
-            print(f"Progress: {int(progress)}% ({status or 'unknown'})")
+            message = f"Progress: {int(progress)}% ({status or 'unknown'})"
         else:
-            print(f"Progress: status={status or 'unknown'}")
+            message = f"Progress: status={status or 'unknown'}"
+        padded_message = message.ljust(last_line_length)
+        sys.stdout.write(f"\r{padded_message}")
+        sys.stdout.flush()
+        last_line_length = len(message)
         if status in TERMINAL_JOB_STATUSES:
+            sys.stdout.write("\n")
+            sys.stdout.flush()
             return job
         if time.monotonic() >= deadline:
+            sys.stdout.write("\n")
+            sys.stdout.flush()
             raise TimeoutError(f"Timed out waiting for job '{job_id}'.")
         time.sleep(poll_interval)
 
