@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,7 @@ class FakeClient:
     def __init__(self, *, api_key: str | None = None) -> None:
         self.api_key = api_key
         self.calls: list[tuple[str, object]] = []
+        self._jobs: dict[str, list[dict[str, object]]] = {}
 
     def health(self) -> dict[str, object]:
         self.calls.append(("health", None))
@@ -36,6 +38,16 @@ class FakeClient:
     def wait_for_job(self, job_id: str, *, timeout: float) -> dict[str, object]:
         self.calls.append(("wait_for_job", {"job_id": job_id, "timeout": timeout}))
         return {"job_id": job_id, "status": "completed", "result": {"ok": True}}
+
+    def set_job_sequence(self, job_id: str, jobs: list[dict[str, object]]) -> None:
+        self._jobs[job_id] = list(jobs)
+
+    def get_job(self, job_id: str) -> dict[str, object]:
+        self.calls.append(("get_job", {"job_id": job_id}))
+        sequence = self._jobs[job_id]
+        if len(sequence) > 1:
+            return sequence.pop(0)
+        return sequence[0]
 
 
 def test_main_without_args_prints_help(capsys: pytest.CaptureFixture[str]) -> None:
@@ -445,3 +457,85 @@ def test_wait_command_polls_existing_job_id(
     assert fake_client.calls == [
         ("wait_for_job", {"job_id": "job_123", "timeout": 90.0}),
     ]
+
+
+def test_poll_command_polls_existing_job_id(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient(api_key="sk_test")
+    fake_client.set_job_sequence(
+        "job_75b0bf3c5d5541f0a52a",
+        [
+            {"job_id": "job_75b0bf3c5d5541f0a52a", "status": "queued", "progress": 10},
+            {"job_id": "job_75b0bf3c5d5541f0a52a", "status": "running", "progress": 65},
+            {
+                "job_id": "job_75b0bf3c5d5541f0a52a",
+                "status": "completed",
+                "progress": 100,
+                "result": {"ok": True},
+            },
+        ],
+    )
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+    monkeypatch.setattr(cli.time, "sleep", lambda _seconds: None)
+
+    exit_code = cli.main(
+        [
+            "poll",
+            "--api-key",
+            "sk_test",
+            "--job",
+            "job_75b0bf3c5d5541f0a52a",
+            "--timeout",
+            "90",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    output_lines = captured.out.strip().splitlines()
+
+    assert exit_code == 0
+    assert "10%" in output_lines[0]
+    assert "65%" in output_lines[1]
+    assert "100%" in output_lines[2]
+    assert json.loads("\n".join(output_lines[3:])) == {
+        "job_id": "job_75b0bf3c5d5541f0a52a",
+        "status": "completed",
+        "progress": 100,
+        "result": {"ok": True},
+    }
+    assert fake_client.calls == [
+        ("get_job", {"job_id": "job_75b0bf3c5d5541f0a52a"}),
+        ("get_job", {"job_id": "job_75b0bf3c5d5541f0a52a"}),
+        ("get_job", {"job_id": "job_75b0bf3c5d5541f0a52a"}),
+    ]
+
+
+def test_poll_command_polls_existing_job_id_quiet_alias_old_behavior_removed(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient(api_key="sk_test")
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(
+        [
+            "wait",
+            "--api-key",
+            "sk_test",
+            "--job-id",
+            "job_75b0bf3c5d5541f0a52a",
+            "--timeout",
+            "90",
+        ]
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {
+        "job_id": "job_75b0bf3c5d5541f0a52a",
+        "status": "completed",
+        "result": {"ok": True},
+    }

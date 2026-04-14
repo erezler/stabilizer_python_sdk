@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,8 @@ from typing import Any
 from stabilizer_python_sdk import ApiError, StabilizerClient
 
 DEFAULT_TEMP_DB_DIR = Path("temp_db")
+DEFAULT_POLL_INTERVAL = 2.0
+TERMINAL_JOB_STATUSES = frozenset({"completed", "failed"})
 
 
 def _make_client(api_key: str | None = None) -> StabilizerClient:
@@ -88,6 +91,29 @@ def _load_request_payload(
     if function_id is not None:
         payload["function_id"] = function_id
     return payload
+
+
+def _poll_job_with_progress(
+    client: StabilizerClient,
+    *,
+    job_id: str,
+    timeout: float,
+    poll_interval: float = DEFAULT_POLL_INTERVAL,
+) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout
+    while True:
+        job = client.get_job(job_id)
+        status = str(job.get("status", "")).lower()
+        progress = job.get("progress")
+        if isinstance(progress, (int, float)):
+            print(f"Progress: {int(progress)}% ({status or 'unknown'})")
+        else:
+            print(f"Progress: status={status or 'unknown'}")
+        if status in TERMINAL_JOB_STATUSES:
+            return job
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f"Timed out waiting for job '{job_id}'.")
+        time.sleep(poll_interval)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -191,6 +217,19 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Maximum seconds to wait for the job to finish.",
     )
 
+    poll_parser = subparsers.add_parser(
+        "poll",
+        help="Poll an existing job until completion.",
+    )
+    poll_parser.add_argument("--api-key", required=True, help="Stabilizer API key.")
+    poll_parser.add_argument("--job", required=True, help="Existing job ID to poll.")
+    poll_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=600.0,
+        help="Maximum seconds to wait for the job to finish.",
+    )
+
     state_parser = subparsers.add_parser(
         "state",
         help="Read ids from saved workflow state files under temp_db.",
@@ -270,6 +309,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         if parsed.command == "wait":
             client = _make_client(api_key=parsed.api_key)
             result = client.wait_for_job(parsed.job_id, timeout=parsed.timeout)
+            _print_json(result)
+            return 0
+
+        if parsed.command == "poll":
+            client = _make_client(api_key=parsed.api_key)
+            result = _poll_job_with_progress(
+                client,
+                job_id=parsed.job,
+                timeout=parsed.timeout,
+            )
             _print_json(result)
             return 0
 
