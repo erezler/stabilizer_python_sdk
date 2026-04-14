@@ -108,7 +108,7 @@ def test_walkthrough_flow_posts_expected_payloads_with_bearer_auth() -> None:
         "name": "Primary config",
         "provider": "openai",
         "api_key": "provider-key",
-        "default_model": "openai/gpt-5.4-mini",
+        "default_model": "google/gemini-2.5-flash-lite",
         "is_default": True,
     }
     optimize_payload = {

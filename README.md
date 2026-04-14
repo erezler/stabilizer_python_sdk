@@ -69,7 +69,7 @@ config = client.create_llm_config(
         "name": "Primary config",
         "provider": "openai",
         "api_key": "YOUR_PROVIDER_KEY",
-        "default_model": "openai/gpt-5.4-mini",
+        "default_model": "google/gemini-2.5-flash-lite",
         "is_default": True,
     }
 )

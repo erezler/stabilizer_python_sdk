@@ -18,7 +18,7 @@ class FakeClient:
 
     def supported_models(self) -> dict[str, object]:
         self.calls.append(("supported_models", None))
-        return {"models": ["openai/gpt-5.4-mini"]}
+        return {"models": ["google/gemini-2.5-flash-lite"]}
 
     def compile_function(self, payload: dict[str, object]) -> dict[str, object]:
         self.calls.append(("compile_function", payload))
@@ -74,7 +74,7 @@ def test_models_command_prints_json(
     captured = capsys.readouterr()
 
     assert exit_code == 0
-    assert json.loads(captured.out) == {"models": ["openai/gpt-5.4-mini"]}
+    assert json.loads(captured.out) == {"models": ["google/gemini-2.5-flash-lite"]}
     assert fake_client.calls == [("supported_models", None)]
 
 

@@ -74,7 +74,7 @@ def test_config_module_accepts_explicit_parameters() -> None:
         name="Primary config",
         provider="openai",
         api_key="provider-key",
-        default_model="openai/gpt-5.4-mini",
+        default_model="google/gemini-2.5-flash-lite",
         is_default=True,
     )
 
@@ -86,7 +86,7 @@ def test_config_module_accepts_explicit_parameters() -> None:
                 "name": "Primary config",
                 "provider": "openai",
                 "api_key": "provider-key",
-                "default_model": "openai/gpt-5.4-mini",
+                "default_model": "google/gemini-2.5-flash-lite",
                 "is_default": True,
             },
         )
@@ -208,7 +208,7 @@ def test_client_accepts_workflow_request_objects() -> None:
             name="Primary config",
             provider="openai",
             api_key="provider-key",
-            default_model="openai/gpt-5.4-mini",
+            default_model="google/gemini-2.5-flash-lite",
             is_default=True,
         )
     )
@@ -258,7 +258,7 @@ def test_client_accepts_workflow_request_objects() -> None:
             "name": "Primary config",
             "provider": "openai",
             "api_key": "provider-key",
-            "default_model": "openai/gpt-5.4-mini",
+            "default_model": "google/gemini-2.5-flash-lite",
             "is_default": True,
         },
         {

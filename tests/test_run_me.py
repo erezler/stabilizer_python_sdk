@@ -94,7 +94,7 @@ def test_config_step_creates_state_file_and_skips_when_result_exists(tmp_path: P
             name="Primary config",
             provider="openai",
             api_key="provider-key",
-            default_model="openai/gpt-5.4-mini",
+            default_model="google/gemini-2.5-flash-lite",
             is_default=True,
         ),
         temp_db_dir=temp_db_dir,
@@ -118,7 +118,7 @@ def test_config_step_creates_state_file_and_skips_when_result_exists(tmp_path: P
             "name": "Primary config",
             "provider": "openai",
             "api_key": "provider-key",
-            "default_model": "openai/gpt-5.4-mini",
+            "default_model": "google/gemini-2.5-flash-lite",
             "is_default": True,
         }
     ]
@@ -177,7 +177,7 @@ def test_run_all_loads_requests_updates_same_state_file_and_uses_compiled_functi
                 name="Primary config",
                 provider="openai",
                 api_key="provider-key",
-                default_model="openai/gpt-5.4-mini",
+                default_model="google/gemini-2.5-flash-lite",
                 is_default=True,
             ),
             optimize_request=OptimizeRequest(
@@ -336,7 +336,7 @@ def test_run_all_new_run_ignores_latest_saved_state_file(tmp_path: Path) -> None
                 name="Primary config",
                 provider="openai",
                 api_key="provider-key",
-                default_model="openai/gpt-5.4-mini",
+                default_model="google/gemini-2.5-flash-lite",
                 is_default=True,
             ),
             compile_payload_file=compile_payload_path,

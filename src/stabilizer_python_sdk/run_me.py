@@ -58,7 +58,7 @@ def _default_config_request() -> LLMConfigRequest:
         name="Primary config",
         provider="openai",
         api_key=_default_provider_api_key(),
-        default_model="openai/gpt-5.4-mini",
+        default_model="google/gemini-2.5-flash-lite",
         is_default=True,
     )
 
