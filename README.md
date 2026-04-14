@@ -1,3 +1,12 @@
+
+# quick start TLDR, just run this:
+```powershell
+$env:STABILIZER_API_KEY = "YOUR_STABILIZER_API_KEY"
+py -m stabilizer_python_sdk.run_me --new
+```
+# ##################################################
+
+
 # stabilizer-python-sdk
 
 Standalone Python SDK and CLI for the Stabilizer API at `https://stabilizerapi.documentinsight.ai/api`.
