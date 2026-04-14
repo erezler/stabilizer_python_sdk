@@ -246,3 +246,6 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+# run this:
+# py -m stabilizer_python_sdk.run_me --new

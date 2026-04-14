@@ -67,7 +67,7 @@ print(client.supported_models())
 config = client.create_llm_config(
     {
         "name": "Primary config",
-        "provider": "openai",
+        "provider": "google",
         "api_key": "YOUR_PROVIDER_KEY",
         "default_model": "google/gemini-2.5-flash-lite",
         "is_default": True,
