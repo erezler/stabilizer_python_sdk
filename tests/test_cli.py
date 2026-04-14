@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import json
 import time
 from pathlib import Path
@@ -136,6 +137,116 @@ def test_models_command_prints_json(
     assert exit_code == 0
     assert json.loads(captured.out) == {"models": ["google/gemini-2.5-flash-lite"]}
     assert fake_client.calls == [("supported_models", None)]
+
+
+def test_compile_command_uses_api_key_from_env_local(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload = {"name": "Example", "prompt": "Extract", "json_structure": {"field": "string"}}
+    payload_path = tmp_path / "compile.json"
+    payload_path.write_text(json.dumps(payload), encoding="utf-8")
+    (tmp_path / ".env.local").write_text("STABILIZER_API_KEY=sk_from_env\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("STABILIZER_API_KEY", raising=False)
+    reloaded = importlib.reload(cli)
+    fake_client = FakeClient(api_key="sk_from_env")
+    captured_api_keys: list[str | None] = []
+
+    def fake_make_client(api_key=None):
+        captured_api_keys.append(api_key)
+        return fake_client
+
+    monkeypatch.setattr(reloaded, "_make_client", fake_make_client)
+
+    exit_code = reloaded.main(
+        [
+            "compile",
+            "--payload-file",
+            str(payload_path),
+        ]
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"job_id": "job_compile", "status": "queued"}
+    assert captured_api_keys == ["sk_from_env"]
+    assert fake_client.calls == [("compile_function", payload)]
+
+
+def test_poll_command_uses_api_key_from_env_local(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (tmp_path / ".env.local").write_text("STABILIZER_API_KEY=sk_from_env\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("STABILIZER_API_KEY", raising=False)
+    reloaded = importlib.reload(cli)
+    fake_client = FakeClient(api_key="sk_from_env")
+    fake_client.set_job_sequence(
+        "job_75b0bf3c5d5541f0a52a",
+        [
+            {
+                "job_id": "job_75b0bf3c5d5541f0a52a",
+                "status": "completed",
+                "progress": 100,
+                "result": {"ok": True},
+            }
+        ],
+    )
+    captured_api_keys: list[str | None] = []
+
+    def fake_make_client(api_key=None):
+        captured_api_keys.append(api_key)
+        return fake_client
+
+    monkeypatch.setattr(reloaded, "_make_client", fake_make_client)
+    monkeypatch.setattr(reloaded.time, "sleep", lambda _seconds: None)
+
+    exit_code = reloaded.main(
+        [
+            "poll",
+            "--job",
+            "job_75b0bf3c5d5541f0a52a",
+            "--timeout",
+            "90",
+        ]
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert captured_api_keys == ["sk_from_env"]
+    assert "100%" in captured.out
+
+
+def test_compile_command_errors_when_api_key_missing_everywhere(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload = {"name": "Example", "prompt": "Extract", "json_structure": {"field": "string"}}
+    payload_path = tmp_path / "compile.json"
+    payload_path.write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("STABILIZER_API_KEY", raising=False)
+    reloaded = importlib.reload(cli)
+
+    exit_code = reloaded.main(
+        [
+            "compile",
+            "--payload-file",
+            str(payload_path),
+        ]
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "STABILIZER_API_KEY" in captured.err
 
 
 def test_compile_command_loads_payload_file_and_can_wait_for_result(

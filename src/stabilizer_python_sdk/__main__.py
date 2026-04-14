@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from collections.abc import Sequence
@@ -13,6 +14,43 @@ from stabilizer_python_sdk import ApiError, StabilizerClient
 DEFAULT_TEMP_DB_DIR = Path("temp_db")
 DEFAULT_POLL_INTERVAL = 2.0
 TERMINAL_JOB_STATUSES = frozenset({"completed", "failed"})
+
+
+def _load_env_file(path: str | Path = ".env.local") -> None:
+    env_path = Path(path)
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        normalized_key = key.strip()
+        if not normalized_key:
+            continue
+        normalized_value = value.strip()
+        if (
+            len(normalized_value) >= 2
+            and normalized_value[0] == normalized_value[-1]
+            and normalized_value[0] in {"'", '"'}
+        ):
+            normalized_value = normalized_value[1:-1]
+        os.environ.setdefault(normalized_key, normalized_value)
+
+
+def _default_api_key() -> str | None:
+    return os.getenv("STABILIZER_API_KEY")
+
+
+def _require_api_key(api_key: str | None) -> str:
+    resolved_api_key = api_key or _default_api_key()
+    if resolved_api_key:
+        return resolved_api_key
+    raise ValueError("Missing API key. Pass --api-key or set STABILIZER_API_KEY in the environment or .env.local.")
+
+
+_load_env_file()
 
 
 def _make_client(api_key: str | None = None) -> StabilizerClient:
@@ -130,7 +168,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "optimize",
         help="Run POST /v1/prompt-optimizations with a JSON payload file.",
     )
-    optimize_parser.add_argument("--api-key", required=True, help="Stabilizer API key.")
+    optimize_parser.add_argument("--api-key", help="Stabilizer API key.")
     optimize_parser.add_argument(
         "--payload-file",
         required=True,
@@ -156,7 +194,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "compile",
         help="Run POST /v1/functions with a JSON payload file.",
     )
-    compile_parser.add_argument("--api-key", required=True, help="Stabilizer API key.")
+    compile_parser.add_argument("--api-key", help="Stabilizer API key.")
     compile_parser.add_argument(
         "--payload-file",
         required=True,
@@ -182,7 +220,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "extract",
         help="Run POST /v1/extract with a JSON payload file.",
     )
-    extract_parser.add_argument("--api-key", required=True, help="Stabilizer API key.")
+    extract_parser.add_argument("--api-key", help="Stabilizer API key.")
     extract_parser.add_argument(
         "--payload-file",
         required=True,
@@ -208,7 +246,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "wait",
         help="Poll an existing job ID until completion.",
     )
-    wait_parser.add_argument("--api-key", required=True, help="Stabilizer API key.")
+    wait_parser.add_argument("--api-key", help="Stabilizer API key.")
     wait_parser.add_argument("--job-id", required=True, help="Existing job ID to poll.")
     wait_parser.add_argument(
         "--timeout",
@@ -221,7 +259,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "poll",
         help="Poll an existing job until completion.",
     )
-    poll_parser.add_argument("--api-key", required=True, help="Stabilizer API key.")
+    poll_parser.add_argument("--api-key", help="Stabilizer API key.")
     poll_parser.add_argument("--job", required=True, help="Existing job ID to poll.")
     poll_parser.add_argument(
         "--timeout",
@@ -250,6 +288,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    _load_env_file()
     parser = _build_parser()
     args = list(argv) if argv is not None else sys.argv[1:]
     if not args:
@@ -268,7 +307,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if parsed.command == "optimize":
-            client = _make_client(api_key=parsed.api_key)
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
             result = client.optimize_prompt(
                 _load_request_payload(
                     parsed.payload_file,
@@ -281,7 +320,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if parsed.command == "compile":
-            client = _make_client(api_key=parsed.api_key)
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
             result = client.compile_function(
                 _load_request_payload(
                     parsed.payload_file,
@@ -294,7 +333,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if parsed.command == "extract":
-            client = _make_client(api_key=parsed.api_key)
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
             result = client.extract(
                 _load_request_payload(
                     parsed.payload_file,
@@ -307,13 +346,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if parsed.command == "wait":
-            client = _make_client(api_key=parsed.api_key)
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
             result = client.wait_for_job(parsed.job_id, timeout=parsed.timeout)
             _print_json(result)
             return 0
 
         if parsed.command == "poll":
-            client = _make_client(api_key=parsed.api_key)
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
             result = _poll_job_with_progress(
                 client,
                 job_id=parsed.job,
