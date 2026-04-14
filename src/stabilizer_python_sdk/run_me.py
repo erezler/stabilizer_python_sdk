@@ -102,6 +102,7 @@ def run_all(
     monotonic=time.monotonic,
 ) -> dict[str, Any]:
     active_settings = settings or RunMeSettings()
+    _require_provider_api_key(active_settings.config_request)
     workflow_console = console or WorkflowConsole()
     state_path = resolve_state_file(
         state_file=active_settings.state_file,
@@ -192,6 +193,13 @@ def _make_client(settings: RunMeSettings) -> StabilizerClient:
     if not settings.api_key or settings.api_key == "YOUR_STABILIZER_API_KEY":
         raise ValueError("Set STABILIZER_API_KEY or override RunMeSettings.api_key before running.")
     return StabilizerClient(api_key=settings.api_key, base_url=settings.base_url)
+
+
+def _require_provider_api_key(config_request: LLMConfigRequest) -> None:
+    if not config_request.api_key or config_request.api_key == "YOUR_PROVIDER_API_KEY":
+        raise ValueError(
+            "Set STABILIZER_PROVIDER_API_KEY or override RunMeSettings.config_request before running."
+        )
 
 
 def _build_parser() -> argparse.ArgumentParser:

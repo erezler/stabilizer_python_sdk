@@ -7,6 +7,8 @@ from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
 
+import pytest
+
 import stabilizer_python_sdk.run_me as run_me
 from stabilizer_python_sdk.compile import CompileRequest, run_compile_step
 from stabilizer_python_sdk.config import LLMConfigRequest, run_config_step
@@ -270,6 +272,64 @@ def test_run_me_loads_env_local_into_defaults(monkeypatch, tmp_path: Path) -> No
     settings = reloaded.RunMeSettings()
     assert settings.api_key == "sk_from_file"
     assert settings.config_request.api_key == "provider_from_file"
+
+
+def test_run_all_requires_provider_api_key_for_byok_workflow(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = FakeWorkflowRunClient()
+    output = io.StringIO()
+    console = WorkflowConsole(stream=output)
+    compile_payload_path = tmp_path / "compile.json"
+    extract_payload_path = tmp_path / "extract.json"
+    temp_db_dir = tmp_path / "temp_db"
+
+    monkeypatch.delenv("STABILIZER_PROVIDER_API_KEY", raising=False)
+
+    compile_payload_path.write_text(
+        json.dumps(
+            {
+                "name": "Event details extractor",
+                "description": "Extracts event details from text",
+                "tags": ["events", "walkthrough"],
+                "prompt": "Extract event details",
+                "json_structure": {"event_title": "string"},
+                "training_data": [],
+                "grounding_methods": ["hard_grounding"],
+                "compile_options": {"num_prompt_variations": 3},
+            }
+        ),
+        encoding="utf-8",
+    )
+    extract_payload_path.write_text(
+        json.dumps(
+            {
+                "function_id": "fn_replace_me",
+                "source_text": "The Harbor Lights Food Fair returns tomorrow.",
+                "options": {"num_results": 3},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="STABILIZER_PROVIDER_API_KEY"):
+        run_all(
+            settings=RunMeSettings(
+                api_key="sk_test",
+                temp_db_dir=temp_db_dir,
+                compile_payload_file=compile_payload_path,
+                extract_payload_file=extract_payload_path,
+                poll_interval=0.0,
+                poll_timeout=30.0,
+            ),
+            client=client,
+            console=console,
+            now_provider=_fixed_now,
+            sleeper=lambda _seconds: None,
+        )
+
+    assert client.config_calls == []
 
 
 def test_run_all_new_run_ignores_latest_saved_state_file(tmp_path: Path) -> None:
