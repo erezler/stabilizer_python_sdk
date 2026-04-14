@@ -9,6 +9,8 @@ from typing import Any
 
 from stabilizer_python_sdk import ApiError, StabilizerClient
 
+DEFAULT_TEMP_DB_DIR = Path("temp_db")
+
 
 def _make_client(api_key: str | None = None) -> StabilizerClient:
     return StabilizerClient(api_key=api_key)
@@ -26,6 +28,68 @@ def _print_json(data: Any) -> None:
     print(json.dumps(data, indent=2))
 
 
+def _read_state(path: Path) -> dict[str, Any]:
+    return _read_payload(str(path))
+
+
+def _latest_state_file(temp_db_dir: Path) -> Path:
+    state_files = sorted(path for path in temp_db_dir.glob("*.json") if path.is_file())
+    if not state_files:
+        raise ValueError(f"No state files found in '{temp_db_dir}'.")
+    return state_files[-1]
+
+
+def _resolve_state_path(target: str, temp_db_dir: Path) -> Path:
+    if target == "latest":
+        return _latest_state_file(temp_db_dir)
+    candidate = Path(target)
+    if candidate.is_file():
+        return candidate
+    resolved = temp_db_dir / target
+    if resolved.is_file():
+        return resolved
+    raise ValueError(f"State file '{target}' was not found.")
+
+
+def _summarize_state(path: Path) -> dict[str, Any]:
+    state = _read_state(path)
+    steps = state.get("steps", {})
+    config_step = steps.get("config", {})
+    optimize_step = steps.get("optimize", {})
+    compile_step = steps.get("compile", {})
+    extract_step = steps.get("extract", {})
+    return {
+        "state_file": path.name,
+        "config_id": config_step.get("config_id"),
+        "optimize_job_id": optimize_step.get("job_id"),
+        "compile_job_id": compile_step.get("job_id"),
+        "function_id": compile_step.get("function_id"),
+        "extract_job_id": extract_step.get("job_id"),
+    }
+
+
+def _list_state_summaries(temp_db_dir: Path, *, limit: int = 10) -> list[dict[str, Any]]:
+    state_files = sorted(
+        (path for path in temp_db_dir.glob("*.json") if path.is_file()),
+        reverse=True,
+    )
+    return [_summarize_state(path) for path in state_files[:limit]]
+
+
+def _load_request_payload(
+    payload_file: str,
+    *,
+    config_id: str | None = None,
+    function_id: str | None = None,
+) -> dict[str, Any]:
+    payload = _read_payload(payload_file)
+    if config_id is not None:
+        payload["config_id"] = config_id
+    if function_id is not None:
+        payload["function_id"] = function_id
+    return payload
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="stabilizer_python_sdk",
@@ -36,6 +100,32 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("health", help="Run GET /v1/health.")
     subparsers.add_parser("models", help="Run GET /v1/supported-models.")
 
+    optimize_parser = subparsers.add_parser(
+        "optimize",
+        help="Run POST /v1/prompt-optimizations with a JSON payload file.",
+    )
+    optimize_parser.add_argument("--api-key", required=True, help="Stabilizer API key.")
+    optimize_parser.add_argument(
+        "--payload-file",
+        required=True,
+        help="Path to a JSON file for the optimize request body.",
+    )
+    optimize_parser.add_argument(
+        "--config",
+        help="Existing config_id to inject into the optimize payload.",
+    )
+    optimize_parser.add_argument(
+        "--wait",
+        action="store_true",
+        help="Poll the returned job until completion.",
+    )
+    optimize_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=600.0,
+        help="Maximum seconds to wait when --wait is used.",
+    )
+
     compile_parser = subparsers.add_parser(
         "compile",
         help="Run POST /v1/functions with a JSON payload file.",
@@ -45,6 +135,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "--payload-file",
         required=True,
         help="Path to a JSON file for the compile request body.",
+    )
+    compile_parser.add_argument(
+        "--config",
+        help="Existing config_id to inject into the compile payload.",
     )
     compile_parser.add_argument(
         "--wait",
@@ -67,6 +161,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "--payload-file",
         required=True,
         help="Path to a JSON file for the extraction request body.",
+    )
+    extract_parser.add_argument(
+        "--function",
+        help="Existing function_id to inject into the extraction payload.",
     )
     extract_parser.add_argument(
         "--wait",
@@ -93,6 +191,22 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Maximum seconds to wait for the job to finish.",
     )
 
+    state_parser = subparsers.add_parser(
+        "state",
+        help="Read ids from saved workflow state files under temp_db.",
+    )
+    state_parser.add_argument(
+        "target",
+        nargs="?",
+        default="latest",
+        help="'latest', 'list', or a specific state file name.",
+    )
+    state_parser.add_argument(
+        "--temp-db-dir",
+        default=str(DEFAULT_TEMP_DB_DIR),
+        help="Directory containing saved workflow state files.",
+    )
+
     return parser
 
 
@@ -114,9 +228,27 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_json(_make_client().supported_models())
             return 0
 
+        if parsed.command == "optimize":
+            client = _make_client(api_key=parsed.api_key)
+            result = client.optimize_prompt(
+                _load_request_payload(
+                    parsed.payload_file,
+                    config_id=parsed.config,
+                )
+            )
+            if parsed.wait:
+                result = client.wait_for_job(result["job_id"], timeout=parsed.timeout)
+            _print_json(result)
+            return 0
+
         if parsed.command == "compile":
             client = _make_client(api_key=parsed.api_key)
-            result = client.compile_function(_read_payload(parsed.payload_file))
+            result = client.compile_function(
+                _load_request_payload(
+                    parsed.payload_file,
+                    config_id=parsed.config,
+                )
+            )
             if parsed.wait:
                 result = client.wait_for_job(result["job_id"], timeout=parsed.timeout)
             _print_json(result)
@@ -124,7 +256,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if parsed.command == "extract":
             client = _make_client(api_key=parsed.api_key)
-            result = client.extract(_read_payload(parsed.payload_file))
+            result = client.extract(
+                _load_request_payload(
+                    parsed.payload_file,
+                    function_id=parsed.function,
+                )
+            )
             if parsed.wait:
                 result = client.wait_for_job(result["job_id"], timeout=parsed.timeout)
             _print_json(result)
@@ -134,6 +271,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             client = _make_client(api_key=parsed.api_key)
             result = client.wait_for_job(parsed.job_id, timeout=parsed.timeout)
             _print_json(result)
+            return 0
+
+        if parsed.command == "state":
+            temp_db_dir = Path(parsed.temp_db_dir)
+            if parsed.target == "list":
+                _print_json(_list_state_summaries(temp_db_dir))
+                return 0
+            _print_json(_summarize_state(_resolve_state_path(parsed.target, temp_db_dir)))
             return 0
     except (ApiError, OSError, ValueError, json.JSONDecodeError, TimeoutError) as exc:
         print(str(exc), file=sys.stderr)
