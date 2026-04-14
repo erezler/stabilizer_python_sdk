@@ -155,6 +155,7 @@ def test_config_command_uses_default_config_file_and_allows_missing_provider_key
         "provider": "openai",
         "default_model": "google/gemini-2.5-flash-lite",
         "is_default": True,
+        "byok": True,
     }
     (tmp_path / "config.json").write_text(json.dumps(payload), encoding="utf-8")
     (tmp_path / ".env.local").write_text("STABILIZER_API_KEY=sk_from_env\n", encoding="utf-8")

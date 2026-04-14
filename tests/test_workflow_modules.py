@@ -76,6 +76,7 @@ def test_config_module_accepts_explicit_parameters() -> None:
         api_key="provider-key",
         default_model="google/gemini-2.5-flash-lite",
         is_default=True,
+        byok=True,
     )
 
     assert response == {"config_id": "cfg_123"}
@@ -88,6 +89,7 @@ def test_config_module_accepts_explicit_parameters() -> None:
                 "api_key": "provider-key",
                 "default_model": "google/gemini-2.5-flash-lite",
                 "is_default": True,
+                "byok": True,
             },
         )
     ]
@@ -204,13 +206,14 @@ def test_client_accepts_workflow_request_objects() -> None:
     client = StabilizerClient(api_key="sk_test", transport=transport)
 
     config_response = client.create_llm_config(
-        LLMConfigRequest(
-            name="Primary config",
-            provider="openai",
-            api_key="provider-key",
-            default_model="google/gemini-2.5-flash-lite",
-            is_default=True,
-        )
+            LLMConfigRequest(
+                name="Primary config",
+                provider="openai",
+                api_key="provider-key",
+                default_model="google/gemini-2.5-flash-lite",
+                is_default=True,
+                byok=True,
+            )
     )
     optimize_response = client.optimize_prompt(
         OptimizeRequest(
@@ -260,6 +263,7 @@ def test_client_accepts_workflow_request_objects() -> None:
             "api_key": "provider-key",
             "default_model": "google/gemini-2.5-flash-lite",
             "is_default": True,
+            "byok": True,
         },
         {
             "prompt": "Extract event details",

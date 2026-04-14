@@ -26,6 +26,7 @@ class LLMConfigRequest:
     default_model: str
     api_key: str | None = None
     is_default: bool = False
+    byok: bool = False
 
     def as_payload(self) -> dict[str, Any]:
         payload = {
@@ -33,6 +34,7 @@ class LLMConfigRequest:
             "provider": self.provider,
             "default_model": self.default_model,
             "is_default": self.is_default,
+            "byok": self.byok,
         }
         if self.api_key not in (None, ""):
             payload["api_key"] = self.api_key
@@ -46,6 +48,7 @@ class LLMConfigRequest:
             api_key=str(payload["api_key"]) if payload.get("api_key") is not None else None,
             default_model=str(payload["default_model"]),
             is_default=bool(payload.get("is_default", False)),
+            byok=bool(payload.get("byok", False)),
         )
 
 
@@ -57,6 +60,7 @@ def create_llm_config(
     api_key: str | None = None,
     default_model: str,
     is_default: bool = False,
+    byok: bool = False,
 ) -> dict[str, Any]:
     request = LLMConfigRequest(
         name=name,
@@ -64,6 +68,7 @@ def create_llm_config(
         api_key=api_key,
         default_model=default_model,
         is_default=is_default,
+        byok=byok,
     )
     return client.create_llm_config(request.as_payload())
 

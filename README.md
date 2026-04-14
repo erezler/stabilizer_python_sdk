@@ -92,7 +92,7 @@ print(state)
 
 ## Workflow Payload Files
 
-`config.json` should contain the LLM config request, including `name`, `provider`, `default_model`, `is_default`, and optional `api_key`.
+`config.json` should contain the LLM config request, including `name`, `provider`, `default_model`, `is_default`, `byok`, and optional `api_key`.
 `compile.json` should contain the function creation request, including the prompt, schema, and training data. `extract.json` should contain the extraction request, including `function_id`, `source_text`, and optional `options`.
 
 The files included in this repository are ready to use as examples:
