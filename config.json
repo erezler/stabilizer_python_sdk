@@ -3,6 +3,6 @@
   "provider": "openai",
   "default_model": "google/gemini-2.5-flash-lite",
   "is_default": false,
-  "byok": true,
-  "api_key": "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"
+  "byok": false,
+  "api_key": ""
 }
