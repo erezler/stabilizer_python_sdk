@@ -158,76 +158,25 @@ def _load_id_from_saved_file(
     return extractor(_read_payload(str(path)))
 
 
-def _resolve_config_id(config_id: str | None, temp_db_dir: Path) -> str | None:
-    if config_id is not None:
-        return config_id
-    saved_config_id = _load_id_from_saved_file(
-        _general_file(temp_db_dir, DEFAULT_CONFIG_FILE),
-        extractor=_extract_config_id,
-    )
-    if saved_config_id is not None:
-        return saved_config_id
-    return _load_id_from_saved_file(DEFAULT_CONFIG_FILE, extractor=_extract_config_id)
+def _default_provider_api_key() -> str | None:
+    return os.getenv("STABILIZER_PROVIDER_API_KEY")
 
 
-def _resolve_function_id(function_id: str | None, temp_db_dir: Path) -> str | None:
-    if function_id is not None:
-        return function_id
-    saved_function_id = _load_id_from_saved_file(
-        _general_file(temp_db_dir, DEFAULT_COMPILE_FILE),
-        extractor=_extract_function_id,
-    )
-    if saved_function_id is not None:
-        return saved_function_id
-    return _load_id_from_saved_file(DEFAULT_COMPILE_FILE, extractor=_extract_function_id)
+def _require_payload_file(payload_file: str | None, *, command_name: str) -> str:
+    if payload_file is not None:
+        return payload_file
+    raise ValueError(f"{command_name} command requires --payload-file.")
 
 
-def _default_config_payload_from_env() -> dict[str, Any]:
-    payload: dict[str, Any] = {
-        "name": os.getenv("STABILIZER_CONFIG_NAME", "Primary config"),
-        "provider": os.getenv("STABILIZER_PROVIDER", "openai"),
-        "default_model": os.getenv("STABILIZER_DEFAULT_MODEL", "google/gemini-2.5-flash-lite"),
-        "is_default": os.getenv("STABILIZER_IS_DEFAULT", "true").strip().lower() in {"1", "true", "yes", "on"},
-        "byok": os.getenv("STABILIZER_BYOK", "false").strip().lower() in {"1", "true", "yes", "on"},
-    }
-    provider_api_key = os.getenv("STABILIZER_PROVIDER_API_KEY")
+def _apply_provider_api_key_default(payload: dict[str, Any]) -> dict[str, Any]:
+    if payload.get("api_key") not in (None, ""):
+        return payload
+    provider_api_key = _default_provider_api_key()
     if provider_api_key:
-        payload["api_key"] = provider_api_key
+        with_provider_key = dict(payload)
+        with_provider_key["api_key"] = provider_api_key
+        return with_provider_key
     return payload
-
-
-def _load_config_payload(payload_file: str | None, temp_db_dir: Path) -> dict[str, Any]:
-    if payload_file is not None:
-        return _read_payload(payload_file)
-    general_payload = _load_saved_payload_candidate(
-        _general_file(temp_db_dir, DEFAULT_CONFIG_FILE),
-        required_keys={"name", "provider", "default_model"},
-    )
-    if general_payload is not None:
-        return general_payload
-    if DEFAULT_CONFIG_FILE.is_file():
-        return _read_payload(str(DEFAULT_CONFIG_FILE))
-    return _default_config_payload_from_env()
-
-
-def _load_module_payload(
-    payload_file: str | None,
-    *,
-    temp_db_dir: Path,
-    default_file: Path,
-    required_keys: set[str],
-) -> dict[str, Any]:
-    if payload_file is not None:
-        return _read_payload(payload_file)
-    general_payload = _load_saved_payload_candidate(
-        _general_file(temp_db_dir, default_file),
-        required_keys=required_keys,
-    )
-    if general_payload is not None:
-        return general_payload
-    if default_file.is_file():
-        return _read_payload(str(default_file))
-    raise ValueError(f"Payload file '{default_file}' was not found.")
 
 
 def _save_general_payload(
@@ -333,18 +282,11 @@ def _summarize_general_state(temp_db_dir: Path) -> dict[str, Any]:
 def _load_request_payload(
     payload_file: str | None,
     *,
-    temp_db_dir: Path,
-    default_file: Path,
-    required_keys: set[str],
     config_id: str | None = None,
     function_id: str | None = None,
+    command_name: str,
 ) -> dict[str, Any]:
-    payload = _load_module_payload(
-        payload_file,
-        temp_db_dir=temp_db_dir,
-        default_file=default_file,
-        required_keys=required_keys,
-    )
+    payload = _read_payload(_require_payload_file(payload_file, command_name=command_name))
     if config_id is not None:
         payload["config_id"] = config_id
     if function_id is not None:
@@ -538,7 +480,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if parsed.command == "config":
             client = _make_client(api_key=_require_api_key(parsed.api_key))
             request_payload = LLMConfigRequest.from_payload(
-                _load_config_payload(parsed.payload_file, temp_db_dir)
+                _apply_provider_api_key_default(
+                    _read_payload(_require_payload_file(parsed.payload_file, command_name="config"))
+                )
             ).as_payload()
             result = client.create_llm_config(request_payload)
             _save_general_payload(
@@ -554,10 +498,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             client = _make_client(api_key=_require_api_key(parsed.api_key))
             request_payload = _load_request_payload(
                 parsed.payload_file,
-                temp_db_dir=temp_db_dir,
-                default_file=DEFAULT_OPTIMIZE_FILE,
-                required_keys={"prompt", "json_structure"},
-                config_id=_resolve_config_id(parsed.config, temp_db_dir),
+                config_id=parsed.config,
+                command_name="optimize",
             )
             result = client.optimize_prompt(request_payload)
             if parsed.wait:
@@ -575,10 +517,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             client = _make_client(api_key=_require_api_key(parsed.api_key))
             request_payload = _load_request_payload(
                 parsed.payload_file,
-                temp_db_dir=temp_db_dir,
-                default_file=DEFAULT_COMPILE_FILE,
-                required_keys={"name", "prompt", "json_structure"},
-                config_id=_resolve_config_id(parsed.config, temp_db_dir),
+                config_id=parsed.config,
+                command_name="compile",
             )
             result = client.compile_function(request_payload)
             if parsed.wait:
@@ -596,10 +536,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             client = _make_client(api_key=_require_api_key(parsed.api_key))
             request_payload = _load_request_payload(
                 parsed.payload_file,
-                temp_db_dir=temp_db_dir,
-                default_file=DEFAULT_EXTRACT_FILE,
-                required_keys={"source_text"},
-                function_id=_resolve_function_id(parsed.function, temp_db_dir),
+                function_id=parsed.function,
+                command_name="extract",
             )
             result = client.extract(request_payload)
             if parsed.wait:

@@ -95,7 +95,7 @@ print(state)
 `config.json` should contain the LLM config request, including `name`, `provider`, `default_model`, `is_default`, `byok`, and optional `api_key`.
 `compile.json` should contain the function creation request, including the prompt, schema, and training data. `extract.json` should contain the extraction request, including `function_id`, `source_text`, and optional `options`.
 
-Standalone CLI runs also keep their latest reusable data under `.\temp_db\general\`. The workflow state used by `run_me` is stored separately under `.\temp_db\run_me\`.
+Standalone CLI runs keep their latest saved responses under `.\temp_db\general\`. The workflow state used by `run_me` is stored separately under `.\temp_db\run_me\`.
 
 The files included in this repository are ready to use as examples:
 
@@ -111,7 +111,7 @@ Run only the commands you need, in any order.
 ```powershell
 py -m stabilizer_python_sdk health
 py -m stabilizer_python_sdk models
-py -m stabilizer_python_sdk config --api-key YOUR_STABILIZER_API_KEY
+py -m stabilizer_python_sdk config --api-key YOUR_STABILIZER_API_KEY --payload-file .\config.json
 py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\optimize.json --config cfg_123
 py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile.json --config cfg_123
 py -m stabilizer_python_sdk extract --api-key YOUR_STABILIZER_API_KEY --payload-file .\extract.json --function fn_123
@@ -123,7 +123,7 @@ Notes:
 
 `config`, `optimize`, `compile`, `extract`, and `poll` require an API key from `--api-key`, `STABILIZER_API_KEY`, or `.env.local`.
 
-For standalone `config`, `optimize`, `compile`, and `extract`, the CLI resolves missing inputs in this order: explicit parameter, `.\temp_db\general\`, root payload files such as `.\config.json` or `.\compile.json`, then environment-backed defaults where available.
+Standalone `config`, `optimize`, `compile`, and `extract` require an explicit `--payload-file`. The only environment-backed defaults for those standalone runs are `STABILIZER_API_KEY` and `STABILIZER_PROVIDER_API_KEY`.
 
 `state latest` reads the current standalone state summary from `.\temp_db\general\`.
 

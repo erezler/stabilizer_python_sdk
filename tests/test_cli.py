@@ -150,7 +150,26 @@ def test_models_command_prints_json(
     assert fake_client.calls == [("supported_models", None)]
 
 
-def test_config_command_uses_default_config_file_and_allows_missing_provider_key(
+def test_config_command_requires_payload_file(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (tmp_path / ".env.local").write_text("STABILIZER_API_KEY=sk_from_env\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("STABILIZER_API_KEY", raising=False)
+    monkeypatch.delenv("STABILIZER_PROVIDER_API_KEY", raising=False)
+    reloaded = importlib.reload(cli)
+
+    exit_code = reloaded.main(["config"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "--payload-file" in captured.err
+
+
+def test_config_command_uses_provider_api_key_from_env_when_payload_omits_it(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -162,8 +181,12 @@ def test_config_command_uses_default_config_file_and_allows_missing_provider_key
         "is_default": True,
         "byok": True,
     }
-    (tmp_path / "config.json").write_text(json.dumps(payload), encoding="utf-8")
-    (tmp_path / ".env.local").write_text("STABILIZER_API_KEY=sk_from_env\n", encoding="utf-8")
+    payload_path = tmp_path / "config.json"
+    payload_path.write_text(json.dumps(payload), encoding="utf-8")
+    (tmp_path / ".env.local").write_text(
+        "STABILIZER_API_KEY=sk_from_env\nSTABILIZER_PROVIDER_API_KEY=provider_from_env\n",
+        encoding="utf-8",
+    )
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("STABILIZER_API_KEY", raising=False)
     monkeypatch.delenv("STABILIZER_PROVIDER_API_KEY", raising=False)
@@ -177,14 +200,26 @@ def test_config_command_uses_default_config_file_and_allows_missing_provider_key
 
     monkeypatch.setattr(reloaded, "_make_client", fake_make_client)
 
-    exit_code = reloaded.main(["config"])
+    exit_code = reloaded.main(["config", "--payload-file", str(payload_path)])
 
     captured = capsys.readouterr()
 
     assert exit_code == 0
     assert json.loads(captured.out) == {"config_id": "cfg_123", "status": "created"}
     assert captured_api_keys == ["sk_from_env"]
-    assert fake_client.calls == [("create_llm_config", payload)]
+    assert fake_client.calls == [
+        (
+            "create_llm_config",
+            {
+                "name": "Primary config",
+                "provider": "openai",
+                "default_model": "google/gemini-2.5-flash-lite",
+                "is_default": True,
+                "byok": True,
+                "api_key": "provider_from_env",
+            },
+        )
+    ]
 
 
 def test_compile_command_uses_api_key_from_env_local(
@@ -248,6 +283,25 @@ def test_compile_command_errors_when_api_key_missing_everywhere(
 
     assert exit_code == 1
     assert "STABILIZER_API_KEY" in captured.err
+
+
+def test_compile_command_requires_payload_file(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (tmp_path / "compile.json").write_text(
+        json.dumps({"name": "Example", "prompt": "Extract", "json_structure": {"field": "string"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = cli.main(["compile", "--api-key", "sk_test"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "--payload-file" in captured.err
 
 
 def test_compile_command_loads_payload_file_and_can_wait_for_result(
@@ -743,204 +797,154 @@ def test_poll_command_updates_general_extract_file_for_extract_jobs(
     }
 
 
-def test_config_command_prefers_general_config_file_and_saves_latest_response(
+def test_config_command_uses_explicit_payload_file_and_saves_latest_response(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    root_payload = {
-        "name": "Root config",
-        "provider": "openai",
-        "default_model": "root-model",
-        "is_default": False,
-    }
-    general_payload = {
-        "config_id": "cfg_existing",
-        "org_id": "org_123",
-        "name": "General config",
+    payload = {
+        "name": "Explicit config",
         "provider": "openrouter",
-        "base_url": "https://openrouter.ai/api/v1",
         "default_model": "google/gemini-2.5-flash-lite",
         "is_default": True,
         "byok": True,
-        "api_key": "REDACTED",
-        "created_at": "2026-04-15T07:15:17.845543+00:00",
     }
-    _write_json(tmp_path / "config.json", root_payload)
-    _write_json(tmp_path / "temp_db" / "general" / "config.json", general_payload)
-    fake_client = FakeClient(api_key="sk_test")
+    payload_path = tmp_path / "config.json"
+    _write_json(payload_path, payload)
+    _write_json(tmp_path / "temp_db" / "general" / "config.json", {"config_id": "cfg_old"})
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+    monkeypatch.delenv("STABILIZER_PROVIDER_API_KEY", raising=False)
+    reloaded = importlib.reload(cli)
+    fake_client = FakeClient(api_key="sk_test")
+    monkeypatch.setattr(reloaded, "_make_client", lambda api_key=None: fake_client)
 
-    exit_code = cli.main(["config", "--api-key", "sk_test"])
+    exit_code = reloaded.main(["config", "--api-key", "sk_test", "--payload-file", str(payload_path)])
 
     captured = capsys.readouterr()
+    saved = json.loads((tmp_path / "temp_db" / "general" / "config.json").read_text(encoding="utf-8"))
 
     assert exit_code == 0
     assert json.loads(captured.out) == {"config_id": "cfg_123", "status": "created"}
-    assert fake_client.calls == [
-        (
-            "create_llm_config",
-            {
-                "name": "General config",
-                "provider": "openrouter",
-                "default_model": "google/gemini-2.5-flash-lite",
-                "api_key": "REDACTED",
-                "is_default": True,
-                "byok": True,
-            },
-        )
-    ]
-    saved = json.loads((tmp_path / "temp_db" / "general" / "config.json").read_text(encoding="utf-8"))
+    assert fake_client.calls == [("create_llm_config", payload)]
     assert saved["config_id"] == "cfg_123"
     assert saved["status"] == "created"
-    assert saved["_request"] == {
-        "name": "General config",
-        "provider": "openrouter",
-        "default_model": "google/gemini-2.5-flash-lite",
-        "api_key": "REDACTED",
-        "is_default": True,
-        "byok": True,
-    }
+    assert saved["_request"] == payload
 
 
-def test_compile_command_uses_general_config_and_saves_latest_response(
+def test_compile_command_does_not_use_general_config_default_and_saves_latest_response(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    compile_payload = {"name": "Example", "prompt": "Extract", "json_structure": {"field": "string"}}
-    _write_json(tmp_path / "compile.json", compile_payload)
-    _write_json(
-        tmp_path / "temp_db" / "general" / "config.json",
-        {
-            "config_id": "cfg_general",
-            "name": "Primary config",
-            "provider": "openrouter",
-            "default_model": "google/gemini-2.5-flash-lite",
-            "is_default": True,
-            "byok": True,
-        },
-    )
+    payload = {"name": "Example", "prompt": "Extract", "json_structure": {"field": "string"}}
+    payload_path = tmp_path / "compile.json"
+    _write_json(payload_path, payload)
+    _write_json(tmp_path / "temp_db" / "general" / "config.json", {"config_id": "cfg_general"})
     fake_client = FakeClient(api_key="sk_test")
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
 
-    exit_code = cli.main(["compile", "--api-key", "sk_test"])
+    exit_code = cli.main(["compile", "--api-key", "sk_test", "--payload-file", str(payload_path)])
 
     captured = capsys.readouterr()
+    saved = json.loads((tmp_path / "temp_db" / "general" / "compile.json").read_text(encoding="utf-8"))
 
     assert exit_code == 0
     assert json.loads(captured.out) == {"job_id": "job_compile", "status": "queued"}
-    assert fake_client.calls == [
-        (
-            "compile_function",
-            {
-                "name": "Example",
-                "prompt": "Extract",
-                "json_structure": {"field": "string"},
-                "config_id": "cfg_general",
-            },
-        )
-    ]
-    saved = json.loads((tmp_path / "temp_db" / "general" / "compile.json").read_text(encoding="utf-8"))
+    assert fake_client.calls == [("compile_function", payload)]
     assert saved["job_id"] == "job_compile"
     assert saved["status"] == "queued"
-    assert saved["_request"] == {
-        "name": "Example",
-        "prompt": "Extract",
-        "json_structure": {"field": "string"},
-        "config_id": "cfg_general",
-    }
+    assert saved["_request"] == payload
 
 
-def test_optimize_command_uses_general_config_and_saves_latest_response(
+def test_optimize_command_does_not_use_general_config_default_and_saves_latest_response(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    optimize_payload = {"prompt": "Extract", "json_structure": {"field": "string"}, "training_data": []}
-    _write_json(tmp_path / "optimize.json", optimize_payload)
-    _write_json(
-        tmp_path / "temp_db" / "general" / "config.json",
-        {
-            "config_id": "cfg_general",
-            "name": "Primary config",
-            "provider": "openrouter",
-            "default_model": "google/gemini-2.5-flash-lite",
-            "is_default": True,
-            "byok": True,
-        },
-    )
+    payload = {"prompt": "Extract", "json_structure": {"field": "string"}, "training_data": []}
+    payload_path = tmp_path / "optimize.json"
+    _write_json(payload_path, payload)
+    _write_json(tmp_path / "temp_db" / "general" / "config.json", {"config_id": "cfg_general"})
     fake_client = FakeClient(api_key="sk_test")
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["optimize", "--api-key", "sk_test", "--payload-file", str(payload_path)])
+
+    captured = capsys.readouterr()
+    saved = json.loads((tmp_path / "temp_db" / "general" / "optimize.json").read_text(encoding="utf-8"))
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"job_id": "job_optimize", "status": "queued"}
+    assert fake_client.calls == [("optimize_prompt", payload)]
+    assert saved["job_id"] == "job_optimize"
+    assert saved["status"] == "queued"
+    assert saved["_request"] == payload
+
+
+def test_optimize_command_requires_payload_file(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (tmp_path / "optimize.json").write_text(
+        json.dumps({"prompt": "Extract", "json_structure": {"field": "string"}, "training_data": []}),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
 
     exit_code = cli.main(["optimize", "--api-key", "sk_test"])
 
     captured = capsys.readouterr()
 
-    assert exit_code == 0
-    assert json.loads(captured.out) == {"job_id": "job_optimize", "status": "queued"}
-    assert fake_client.calls == [
-        (
-            "optimize_prompt",
-            {
-                "prompt": "Extract",
-                "json_structure": {"field": "string"},
-                "training_data": [],
-                "config_id": "cfg_general",
-            },
-        )
-    ]
-    saved = json.loads((tmp_path / "temp_db" / "general" / "optimize.json").read_text(encoding="utf-8"))
-    assert saved["job_id"] == "job_optimize"
-    assert saved["status"] == "queued"
-    assert saved["_request"] == {
-        "prompt": "Extract",
-        "json_structure": {"field": "string"},
-        "training_data": [],
-        "config_id": "cfg_general",
-    }
+    assert exit_code == 1
+    assert "--payload-file" in captured.err
 
 
-def test_extract_command_uses_general_function_id_and_saves_latest_response(
+def test_extract_command_does_not_use_general_function_default_and_saves_latest_response(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    _write_json(tmp_path / "extract.json", {"function_id": "fn_replace_me", "source_text": "hello"})
+    payload = {"function_id": "fn_replace_me", "source_text": "hello"}
+    payload_path = tmp_path / "extract.json"
+    _write_json(payload_path, payload)
     _write_json(
         tmp_path / "temp_db" / "general" / "compile.json",
-        {
-            "job_id": "job_compile",
-            "status": "completed",
-            "result": {"function_id": "fn_general"},
-        },
+        {"job_id": "job_compile", "status": "completed", "result": {"function_id": "fn_general"}},
     )
     fake_client = FakeClient(api_key="sk_test")
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
 
+    exit_code = cli.main(["extract", "--api-key", "sk_test", "--payload-file", str(payload_path)])
+
+    captured = capsys.readouterr()
+    saved = json.loads((tmp_path / "temp_db" / "general" / "extract.json").read_text(encoding="utf-8"))
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"job_id": "job_extract", "status": "queued"}
+    assert fake_client.calls == [("extract", payload)]
+    assert saved["job_id"] == "job_extract"
+    assert saved["status"] == "queued"
+    assert saved["_request"] == payload
+
+
+def test_extract_command_requires_payload_file(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (tmp_path / "extract.json").write_text(
+        json.dumps({"function_id": "fn_123", "source_text": "hello"}),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
     exit_code = cli.main(["extract", "--api-key", "sk_test"])
 
     captured = capsys.readouterr()
 
-    assert exit_code == 0
-    assert json.loads(captured.out) == {"job_id": "job_extract", "status": "queued"}
-    assert fake_client.calls == [
-        (
-            "extract",
-            {
-                "function_id": "fn_general",
-                "source_text": "hello",
-            },
-        )
-    ]
-    saved = json.loads((tmp_path / "temp_db" / "general" / "extract.json").read_text(encoding="utf-8"))
-    assert saved["job_id"] == "job_extract"
-    assert saved["status"] == "queued"
-    assert saved["_request"] == {
-        "function_id": "fn_general",
-        "source_text": "hello",
-    }
+    assert exit_code == 1
+    assert "--payload-file" in captured.err
