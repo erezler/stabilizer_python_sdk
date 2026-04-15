@@ -601,6 +601,148 @@ def test_poll_command_polls_existing_job_id(
     ]
 
 
+def test_poll_command_updates_general_compile_file_for_compile_jobs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient(api_key="sk_test")
+    fake_client.set_job_sequence(
+        "job_compile_123",
+        [
+            {"job_id": "job_compile_123", "status": "running", "progress": 50, "type": "compile"},
+            {
+                "job_id": "job_compile_123",
+                "status": "completed",
+                "progress": 100,
+                "type": "compile",
+                "result": {"function_id": "fn_123"},
+            },
+        ],
+    )
+    _write_json(
+        tmp_path / "temp_db" / "general" / "compile.json",
+        {
+            "job_id": "job_compile_123",
+            "status": "queued",
+            "_request": {
+                "name": "Compile",
+                "prompt": "Extract",
+                "json_structure": {"field": "string"},
+            },
+        },
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+    monkeypatch.setattr(cli.time, "sleep", lambda _seconds: None)
+
+    exit_code = cli.main(
+        [
+            "poll",
+            "--api-key",
+            "sk_test",
+            "--job",
+            "job_compile_123",
+            "--timeout",
+            "90",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    saved = json.loads((tmp_path / "temp_db" / "general" / "compile.json").read_text(encoding="utf-8"))
+
+    assert exit_code == 0
+    assert json.loads(captured.out.split("\n", 1)[1]) == {
+        "job_id": "job_compile_123",
+        "status": "completed",
+        "progress": 100,
+        "type": "compile",
+        "result": {"function_id": "fn_123"},
+    }
+    assert saved == {
+        "job_id": "job_compile_123",
+        "status": "completed",
+        "progress": 100,
+        "type": "compile",
+        "result": {"function_id": "fn_123"},
+        "_request": {
+            "name": "Compile",
+            "prompt": "Extract",
+            "json_structure": {"field": "string"},
+        },
+    }
+
+
+def test_poll_command_updates_general_extract_file_for_extract_jobs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient(api_key="sk_test")
+    fake_client.set_job_sequence(
+        "job_extract_123",
+        [
+            {"job_id": "job_extract_123", "status": "running", "progress": 50, "type": "extract"},
+            {
+                "job_id": "job_extract_123",
+                "status": "completed",
+                "progress": 100,
+                "type": "extract",
+                "result": {"field": "value"},
+            },
+        ],
+    )
+    _write_json(
+        tmp_path / "temp_db" / "general" / "extract.json",
+        {
+            "job_id": "job_extract_123",
+            "status": "queued",
+            "_request": {
+                "function_id": "fn_123",
+                "source_text": "hello",
+            },
+        },
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+    monkeypatch.setattr(cli.time, "sleep", lambda _seconds: None)
+
+    exit_code = cli.main(
+        [
+            "poll",
+            "--api-key",
+            "sk_test",
+            "--job",
+            "job_extract_123",
+            "--timeout",
+            "90",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    saved = json.loads((tmp_path / "temp_db" / "general" / "extract.json").read_text(encoding="utf-8"))
+
+    assert exit_code == 0
+    assert json.loads(captured.out.split("\n", 1)[1]) == {
+        "job_id": "job_extract_123",
+        "status": "completed",
+        "progress": 100,
+        "type": "extract",
+        "result": {"field": "value"},
+    }
+    assert saved == {
+        "job_id": "job_extract_123",
+        "status": "completed",
+        "progress": 100,
+        "type": "extract",
+        "result": {"field": "value"},
+        "_request": {
+            "function_id": "fn_123",
+            "source_text": "hello",
+        },
+    }
+
+
 def test_config_command_prefers_general_config_file_and_saves_latest_response(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -244,6 +244,28 @@ def _save_general_payload(
     target.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def _save_polled_job_result(temp_db_dir: Path, job: dict[str, Any]) -> None:
+    job_type = str(job.get("type", "")).lower()
+    target_file: Path | None = None
+    if job_type == "compile":
+        target_file = _general_file(temp_db_dir, DEFAULT_COMPILE_FILE)
+    elif job_type == "extract":
+        target_file = _general_file(temp_db_dir, DEFAULT_EXTRACT_FILE)
+
+    if target_file is None:
+        return
+
+    payload = dict(job)
+    if target_file.is_file():
+        existing_payload = _read_payload(str(target_file))
+        existing_request = existing_payload.get("_request")
+        if isinstance(existing_request, dict):
+            payload["_request"] = existing_request
+
+    target_file.parent.mkdir(parents=True, exist_ok=True)
+    target_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
 def _latest_state_file(temp_db_dir: Path) -> Path:
     state_dir = _run_me_state_dir(temp_db_dir)
     state_files = sorted(path for path in state_dir.glob("*.json") if path.is_file())
@@ -604,6 +626,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 job_id=parsed.job,
                 timeout=parsed.timeout,
             )
+            _save_polled_job_result(temp_db_dir, result)
             _print_json(result)
             return 0
 
