@@ -1,6 +1,6 @@
 {
   "name": "Primary config",
-  "provider": "openai",
+  "provider": "openrouter",
   "default_model": "google/gemini-2.5-flash-lite",
   "is_default": false,
   "byok": true,

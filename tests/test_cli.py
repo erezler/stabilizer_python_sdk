@@ -334,6 +334,7 @@ def test_compile_command_loads_payload_file_and_can_poll_for_result(
     )
 
     captured = capsys.readouterr()
+    saved = json.loads((tmp_path / "temp_db" / "general" / "compile.json").read_text(encoding="utf-8"))
 
     assert exit_code == 0
     assert "\rProgress: 40% (running)" in captured.out
@@ -349,6 +350,13 @@ def test_compile_command_loads_payload_file_and_can_poll_for_result(
         ("get_job", {"job_id": "job_compile"}),
         ("get_job", {"job_id": "job_compile"}),
     ]
+    assert saved == {
+        "job_id": "job_compile",
+        "status": "completed",
+        "progress": 100,
+        "result": {"ok": True},
+        "_request": payload,
+    }
 
 
 def test_wait_command_is_not_supported(
@@ -728,6 +736,7 @@ def test_poll_command_updates_general_compile_file_for_compile_jobs(
 
     captured = capsys.readouterr()
     saved = json.loads((tmp_path / "temp_db" / "general" / "compile.json").read_text(encoding="utf-8"))
+    saved = json.loads((tmp_path / "temp_db" / "general" / "compile.json").read_text(encoding="utf-8"))
 
     assert exit_code == 0
     assert json.loads(captured.out.split("\n", 1)[1]) == {
@@ -747,6 +756,78 @@ def test_poll_command_updates_general_compile_file_for_compile_jobs(
             "name": "Compile",
             "prompt": "Extract",
             "json_structure": {"field": "string"},
+        },
+    }
+
+
+def test_poll_command_updates_general_optimize_file_for_optimize_jobs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient(api_key="sk_test")
+    fake_client.set_job_sequence(
+        "job_optimize_123",
+        [
+            {"job_id": "job_optimize_123", "status": "running", "progress": 50, "type": "optimize"},
+            {
+                "job_id": "job_optimize_123",
+                "status": "completed",
+                "progress": 100,
+                "type": "optimize",
+                "result": {"optimized_prompt": "Better prompt"},
+            },
+        ],
+    )
+    _write_json(
+        tmp_path / "temp_db" / "general" / "optimize.json",
+        {
+            "job_id": "job_optimize_123",
+            "status": "queued",
+            "_request": {
+                "prompt": "Extract",
+                "json_structure": {"field": "string"},
+                "training_data": [],
+            },
+        },
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+    monkeypatch.setattr(cli.time, "sleep", lambda _seconds: None)
+
+    exit_code = cli.main(
+        [
+            "poll",
+            "--api-key",
+            "sk_test",
+            "--job",
+            "job_optimize_123",
+            "--timeout",
+            "90",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    saved = json.loads((tmp_path / "temp_db" / "general" / "optimize.json").read_text(encoding="utf-8"))
+
+    assert exit_code == 0
+    assert json.loads(captured.out.split("\n", 1)[1]) == {
+        "job_id": "job_optimize_123",
+        "status": "completed",
+        "progress": 100,
+        "type": "optimize",
+        "result": {"optimized_prompt": "Better prompt"},
+    }
+    assert saved == {
+        "job_id": "job_optimize_123",
+        "status": "completed",
+        "progress": 100,
+        "type": "optimize",
+        "result": {"optimized_prompt": "Better prompt"},
+        "_request": {
+            "prompt": "Extract",
+            "json_structure": {"field": "string"},
+            "training_data": [],
         },
     }
 
@@ -855,7 +936,7 @@ def test_config_command_uses_explicit_payload_file_and_saves_latest_response(
     assert saved["_request"] == payload
 
 
-def test_compile_command_does_not_use_general_config_default_and_saves_latest_response(
+def test_compile_command_does_not_update_general_without_poll(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -863,7 +944,7 @@ def test_compile_command_does_not_use_general_config_default_and_saves_latest_re
     payload = {"name": "Example", "prompt": "Extract", "json_structure": {"field": "string"}}
     payload_path = tmp_path / "compile.json"
     _write_json(payload_path, payload)
-    _write_json(tmp_path / "temp_db" / "general" / "config.json", {"config_id": "cfg_general"})
+    _write_json(tmp_path / "temp_db" / "general" / "compile.json", {"job_id": "job_old", "status": "queued"})
     fake_client = FakeClient(api_key="sk_test")
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
@@ -876,12 +957,10 @@ def test_compile_command_does_not_use_general_config_default_and_saves_latest_re
     assert exit_code == 0
     assert json.loads(captured.out) == {"job_id": "job_compile", "status": "queued"}
     assert fake_client.calls == [("compile_function", payload)]
-    assert saved["job_id"] == "job_compile"
-    assert saved["status"] == "queued"
-    assert saved["_request"] == payload
+    assert saved == {"job_id": "job_old", "status": "queued"}
 
 
-def test_optimize_command_does_not_use_general_config_default_and_saves_latest_response(
+def test_optimize_command_does_not_update_general_without_poll(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -889,7 +968,7 @@ def test_optimize_command_does_not_use_general_config_default_and_saves_latest_r
     payload = {"prompt": "Extract", "json_structure": {"field": "string"}, "training_data": []}
     payload_path = tmp_path / "optimize.json"
     _write_json(payload_path, payload)
-    _write_json(tmp_path / "temp_db" / "general" / "config.json", {"config_id": "cfg_general"})
+    _write_json(tmp_path / "temp_db" / "general" / "optimize.json", {"job_id": "job_old", "status": "queued"})
     fake_client = FakeClient(api_key="sk_test")
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
@@ -902,9 +981,7 @@ def test_optimize_command_does_not_use_general_config_default_and_saves_latest_r
     assert exit_code == 0
     assert json.loads(captured.out) == {"job_id": "job_optimize", "status": "queued"}
     assert fake_client.calls == [("optimize_prompt", payload)]
-    assert saved["job_id"] == "job_optimize"
-    assert saved["status"] == "queued"
-    assert saved["_request"] == payload
+    assert saved == {"job_id": "job_old", "status": "queued"}
 
 
 def test_optimize_command_requires_payload_file(
@@ -926,7 +1003,7 @@ def test_optimize_command_requires_payload_file(
     assert "--payload-file" in captured.err
 
 
-def test_extract_command_does_not_use_general_function_default_and_saves_latest_response(
+def test_extract_command_does_not_update_general_without_poll(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -934,10 +1011,7 @@ def test_extract_command_does_not_use_general_function_default_and_saves_latest_
     payload = {"function_id": "fn_replace_me", "source_text": "hello"}
     payload_path = tmp_path / "extract.json"
     _write_json(payload_path, payload)
-    _write_json(
-        tmp_path / "temp_db" / "general" / "compile.json",
-        {"job_id": "job_compile", "status": "completed", "result": {"function_id": "fn_general"}},
-    )
+    _write_json(tmp_path / "temp_db" / "general" / "extract.json", {"job_id": "job_old", "status": "queued"})
     fake_client = FakeClient(api_key="sk_test")
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
@@ -950,9 +1024,7 @@ def test_extract_command_does_not_use_general_function_default_and_saves_latest_
     assert exit_code == 0
     assert json.loads(captured.out) == {"job_id": "job_extract", "status": "queued"}
     assert fake_client.calls == [("extract", payload)]
-    assert saved["job_id"] == "job_extract"
-    assert saved["status"] == "queued"
-    assert saved["_request"] == payload
+    assert saved == {"job_id": "job_old", "status": "queued"}
 
 
 def test_extract_command_requires_payload_file(

@@ -196,7 +196,9 @@ def _save_general_payload(
 def _save_polled_job_result(temp_db_dir: Path, job: dict[str, Any]) -> None:
     job_type = str(job.get("type", "")).lower()
     target_file: Path | None = None
-    if job_type == "compile":
+    if job_type == "optimize":
+        target_file = _general_file(temp_db_dir, DEFAULT_OPTIMIZE_FILE)
+    elif job_type == "compile":
         target_file = _general_file(temp_db_dir, DEFAULT_COMPILE_FILE)
     elif job_type == "extract":
         target_file = _general_file(temp_db_dir, DEFAULT_EXTRACT_FILE)
@@ -508,12 +510,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                     job_id=result["job_id"],
                     timeout=parsed.timeout,
                 )
-            _save_general_payload(
-                temp_db_dir,
-                DEFAULT_OPTIMIZE_FILE,
-                request=request_payload,
-                response=result,
-            )
+                _save_general_payload(
+                    temp_db_dir,
+                    DEFAULT_OPTIMIZE_FILE,
+                    request=request_payload,
+                    response=result,
+                )
             _print_json(result)
             return 0
 
@@ -531,12 +533,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                     job_id=result["job_id"],
                     timeout=parsed.timeout,
                 )
-            _save_general_payload(
-                temp_db_dir,
-                DEFAULT_COMPILE_FILE,
-                request=request_payload,
-                response=result,
-            )
+                _save_general_payload(
+                    temp_db_dir,
+                    DEFAULT_COMPILE_FILE,
+                    request=request_payload,
+                    response=result,
+                )
             _print_json(result)
             return 0
 
@@ -554,12 +556,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                     job_id=result["job_id"],
                     timeout=parsed.timeout,
                 )
-            _save_general_payload(
-                temp_db_dir,
-                DEFAULT_EXTRACT_FILE,
-                request=request_payload,
-                response=result,
-            )
+                _save_general_payload(
+                    temp_db_dir,
+                    DEFAULT_EXTRACT_FILE,
+                    request=request_payload,
+                    response=result,
+                )
             _print_json(result)
             return 0
 

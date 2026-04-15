@@ -95,7 +95,7 @@ print(state)
 `config.json` should contain the LLM config request, including `name`, `provider`, `default_model`, `is_default`, `byok`, and optional `api_key`.
 `compile.json` should contain the function creation request, including the prompt, schema, and training data. `extract.json` should contain the extraction request, including `function_id`, `source_text`, and optional `options`.
 
-Standalone CLI runs keep their latest saved responses under `.\temp_db\general\`. The workflow state used by `run_me` is stored separately under `.\temp_db\run_me\`.
+Standalone CLI runs keep their latest saved responses under `.\temp_db\general\`. For async standalone commands, `optimize`, `compile`, and `extract` update those saved responses only when you poll a job, either with `py -m stabilizer_python_sdk poll` or by passing `--poll`. The workflow state used by `run_me` is stored separately under `.\temp_db\run_me\`.
 
 The files included in this repository are ready to use as examples:
 
