@@ -116,6 +116,19 @@ def _load_saved_payload_candidate(
     return None
 
 
+def _load_saved_response_candidate(
+    path: Path,
+    *,
+    required_keys: set[str],
+) -> dict[str, Any] | None:
+    if not path.is_file():
+        return None
+    payload = _read_payload(str(path))
+    if _payload_has_keys(payload, required_keys):
+        return payload
+    return None
+
+
 def _extract_config_id(payload: dict[str, Any]) -> str | None:
     config_id = payload.get("config_id")
     if config_id is None:
@@ -269,19 +282,19 @@ def _summarize_state(path: Path) -> dict[str, Any]:
 
 
 def _summarize_general_state(temp_db_dir: Path) -> dict[str, Any]:
-    config_payload = _load_saved_payload_candidate(
+    config_payload = _load_saved_response_candidate(
         _general_file(temp_db_dir, DEFAULT_CONFIG_FILE),
         required_keys={"config_id"},
     ) or {}
-    optimize_payload = _load_saved_payload_candidate(
+    optimize_payload = _load_saved_response_candidate(
         _general_file(temp_db_dir, DEFAULT_OPTIMIZE_FILE),
         required_keys={"job_id"},
     ) or {}
-    compile_payload = _load_saved_payload_candidate(
+    compile_payload = _load_saved_response_candidate(
         _general_file(temp_db_dir, DEFAULT_COMPILE_FILE),
         required_keys={"job_id"},
     ) or {}
-    extract_payload = _load_saved_payload_candidate(
+    extract_payload = _load_saved_response_candidate(
         _general_file(temp_db_dir, DEFAULT_EXTRACT_FILE),
         required_keys={"job_id"},
     ) or {}

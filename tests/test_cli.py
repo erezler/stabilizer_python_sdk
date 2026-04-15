@@ -259,6 +259,7 @@ def test_compile_command_loads_payload_file_and_can_wait_for_result(
     payload_path = tmp_path / "compile.json"
     payload_path.write_text(json.dumps(payload), encoding="utf-8")
     fake_client = FakeClient(api_key="sk_test")
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
 
     exit_code = cli.main(
@@ -439,13 +440,48 @@ def test_state_latest_prints_latest_state_ids(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    _write_json(tmp_path / "temp_db" / "general" / "config.json", {"config_id": "cfg_123"})
-    _write_json(tmp_path / "temp_db" / "general" / "optimize.json", {"job_id": "job_opt_123"})
+    _write_json(
+        tmp_path / "temp_db" / "general" / "config.json",
+        {
+            "config_id": "cfg_123",
+            "_request": {
+                "name": "Primary config",
+                "provider": "openrouter",
+                "default_model": "google/gemini-2.5-flash-lite",
+            },
+        },
+    )
+    _write_json(
+        tmp_path / "temp_db" / "general" / "optimize.json",
+        {
+            "job_id": "job_opt_123",
+            "_request": {
+                "prompt": "Optimize",
+                "config_id": "cfg_123",
+            },
+        },
+    )
     _write_json(
         tmp_path / "temp_db" / "general" / "compile.json",
-        {"job_id": "job_compile_123", "result": {"function_id": "fn_123"}},
+        {
+            "job_id": "job_compile_123",
+            "result": {"function_id": "fn_123"},
+            "_request": {
+                "name": "Compile",
+                "config_id": "cfg_123",
+            },
+        },
     )
-    _write_json(tmp_path / "temp_db" / "general" / "extract.json", {"job_id": "job_extract_123"})
+    _write_json(
+        tmp_path / "temp_db" / "general" / "extract.json",
+        {
+            "job_id": "job_extract_123",
+            "_request": {
+                "function_id": "fn_123",
+                "source_text": "hello",
+            },
+        },
+    )
     monkeypatch.chdir(tmp_path)
 
     exit_code = cli.main(["state", "latest"])
