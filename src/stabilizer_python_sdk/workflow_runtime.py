@@ -9,6 +9,7 @@ from typing import Any, Callable, TextIO
 
 STATE_FILE_TIMESTAMP_FORMAT = "%Y-%m-%d-%H-%M-%S"
 TERMINAL_JOB_STATUSES = frozenset({"completed", "failed"})
+RUN_ME_STATE_SUBDIR = "run_me"
 LatestStatePathResolver = Callable[[], datetime]
 
 
@@ -71,7 +72,7 @@ def resolve_state_file(
     if state_file is not None:
         return Path(state_file)
 
-    temp_db_path = Path(temp_db_dir)
+    temp_db_path = Path(temp_db_dir) / RUN_ME_STATE_SUBDIR
     temp_db_path.mkdir(parents=True, exist_ok=True)
     if force_new:
         return temp_db_path / f"{timestamp_string(now_provider)}.json"

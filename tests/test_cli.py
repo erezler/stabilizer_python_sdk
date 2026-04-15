@@ -113,6 +113,11 @@ def _write_state(
     (temp_db_dir / filename).write_text(json.dumps(state), encoding="utf-8")
 
 
+def _write_json(path: Path, payload: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
 def test_health_command_prints_json(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -434,8 +439,8 @@ def test_state_latest_prints_latest_state_ids(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    temp_db_dir = tmp_path / "temp_db"
-    temp_db_dir.mkdir()
+    temp_db_dir = tmp_path / "temp_db" / "run_me"
+    temp_db_dir.mkdir(parents=True)
     _write_state(
         temp_db_dir,
         "2026-04-14-10-19-17.json",
@@ -476,8 +481,8 @@ def test_state_list_prints_last_ten_states(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    temp_db_dir = tmp_path / "temp_db"
-    temp_db_dir.mkdir()
+    temp_db_dir = tmp_path / "temp_db" / "run_me"
+    temp_db_dir.mkdir(parents=True)
     for index in range(12):
         _write_state(
             temp_db_dir,
@@ -506,8 +511,8 @@ def test_state_file_name_prints_specific_state_ids(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    temp_db_dir = tmp_path / "temp_db"
-    temp_db_dir.mkdir()
+    temp_db_dir = tmp_path / "temp_db" / "run_me"
+    temp_db_dir.mkdir(parents=True)
     _write_state(
         temp_db_dir,
         "2026-04-14-10-19-18.json",
@@ -586,3 +591,206 @@ def test_poll_command_polls_existing_job_id(
         ("get_job", {"job_id": "job_75b0bf3c5d5541f0a52a"}),
         ("get_job", {"job_id": "job_75b0bf3c5d5541f0a52a"}),
     ]
+
+
+def test_config_command_prefers_general_config_file_and_saves_latest_response(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    root_payload = {
+        "name": "Root config",
+        "provider": "openai",
+        "default_model": "root-model",
+        "is_default": False,
+    }
+    general_payload = {
+        "config_id": "cfg_existing",
+        "org_id": "org_123",
+        "name": "General config",
+        "provider": "openrouter",
+        "base_url": "https://openrouter.ai/api/v1",
+        "default_model": "google/gemini-2.5-flash-lite",
+        "is_default": True,
+        "byok": True,
+        "api_key": "REDACTED",
+        "created_at": "2026-04-15T07:15:17.845543+00:00",
+    }
+    _write_json(tmp_path / "config.json", root_payload)
+    _write_json(tmp_path / "temp_db" / "general" / "config.json", general_payload)
+    fake_client = FakeClient(api_key="sk_test")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["config", "--api-key", "sk_test"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"config_id": "cfg_123", "status": "created"}
+    assert fake_client.calls == [
+        (
+            "create_llm_config",
+            {
+                "name": "General config",
+                "provider": "openrouter",
+                "default_model": "google/gemini-2.5-flash-lite",
+                "api_key": "REDACTED",
+                "is_default": True,
+                "byok": True,
+            },
+        )
+    ]
+    saved = json.loads((tmp_path / "temp_db" / "general" / "config.json").read_text(encoding="utf-8"))
+    assert saved["config_id"] == "cfg_123"
+    assert saved["status"] == "created"
+    assert saved["_request"] == {
+        "name": "General config",
+        "provider": "openrouter",
+        "default_model": "google/gemini-2.5-flash-lite",
+        "api_key": "REDACTED",
+        "is_default": True,
+        "byok": True,
+    }
+
+
+def test_compile_command_uses_general_config_and_saves_latest_response(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    compile_payload = {"name": "Example", "prompt": "Extract", "json_structure": {"field": "string"}}
+    _write_json(tmp_path / "compile.json", compile_payload)
+    _write_json(
+        tmp_path / "temp_db" / "general" / "config.json",
+        {
+            "config_id": "cfg_general",
+            "name": "Primary config",
+            "provider": "openrouter",
+            "default_model": "google/gemini-2.5-flash-lite",
+            "is_default": True,
+            "byok": True,
+        },
+    )
+    fake_client = FakeClient(api_key="sk_test")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["compile", "--api-key", "sk_test"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"job_id": "job_compile", "status": "queued"}
+    assert fake_client.calls == [
+        (
+            "compile_function",
+            {
+                "name": "Example",
+                "prompt": "Extract",
+                "json_structure": {"field": "string"},
+                "config_id": "cfg_general",
+            },
+        )
+    ]
+    saved = json.loads((tmp_path / "temp_db" / "general" / "compile.json").read_text(encoding="utf-8"))
+    assert saved["job_id"] == "job_compile"
+    assert saved["status"] == "queued"
+    assert saved["_request"] == {
+        "name": "Example",
+        "prompt": "Extract",
+        "json_structure": {"field": "string"},
+        "config_id": "cfg_general",
+    }
+
+
+def test_optimize_command_uses_general_config_and_saves_latest_response(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    optimize_payload = {"prompt": "Extract", "json_structure": {"field": "string"}, "training_data": []}
+    _write_json(tmp_path / "optimize.json", optimize_payload)
+    _write_json(
+        tmp_path / "temp_db" / "general" / "config.json",
+        {
+            "config_id": "cfg_general",
+            "name": "Primary config",
+            "provider": "openrouter",
+            "default_model": "google/gemini-2.5-flash-lite",
+            "is_default": True,
+            "byok": True,
+        },
+    )
+    fake_client = FakeClient(api_key="sk_test")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["optimize", "--api-key", "sk_test"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"job_id": "job_optimize", "status": "queued"}
+    assert fake_client.calls == [
+        (
+            "optimize_prompt",
+            {
+                "prompt": "Extract",
+                "json_structure": {"field": "string"},
+                "training_data": [],
+                "config_id": "cfg_general",
+            },
+        )
+    ]
+    saved = json.loads((tmp_path / "temp_db" / "general" / "optimize.json").read_text(encoding="utf-8"))
+    assert saved["job_id"] == "job_optimize"
+    assert saved["status"] == "queued"
+    assert saved["_request"] == {
+        "prompt": "Extract",
+        "json_structure": {"field": "string"},
+        "training_data": [],
+        "config_id": "cfg_general",
+    }
+
+
+def test_extract_command_uses_general_function_id_and_saves_latest_response(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _write_json(tmp_path / "extract.json", {"function_id": "fn_replace_me", "source_text": "hello"})
+    _write_json(
+        tmp_path / "temp_db" / "general" / "compile.json",
+        {
+            "job_id": "job_compile",
+            "status": "completed",
+            "result": {"function_id": "fn_general"},
+        },
+    )
+    fake_client = FakeClient(api_key="sk_test")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["extract", "--api-key", "sk_test"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"job_id": "job_extract", "status": "queued"}
+    assert fake_client.calls == [
+        (
+            "extract",
+            {
+                "function_id": "fn_general",
+                "source_text": "hello",
+            },
+        )
+    ]
+    saved = json.loads((tmp_path / "temp_db" / "general" / "extract.json").read_text(encoding="utf-8"))
+    assert saved["job_id"] == "job_extract"
+    assert saved["status"] == "queued"
+    assert saved["_request"] == {
+        "function_id": "fn_general",
+        "source_text": "hello",
+    }

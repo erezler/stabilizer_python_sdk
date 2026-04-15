@@ -110,7 +110,7 @@ def test_config_step_creates_state_file_and_skips_when_result_exists(tmp_path: P
         now_provider=_fixed_now,
     )
 
-    state_file = temp_db_dir / "2026-04-14-08-30-45.json"
+    state_file = temp_db_dir / "run_me" / "2026-04-14-08-30-45.json"
     state = json.loads(state_file.read_text(encoding="utf-8"))
 
     assert created == {"config_id": "cfg_123", "status": "created"}
@@ -204,7 +204,7 @@ def test_run_all_loads_requests_updates_same_state_file_and_uses_compiled_functi
         sleeper=lambda _seconds: None,
     )
 
-    state_file = temp_db_dir / "2026-04-14-08-30-45.json"
+    state_file = temp_db_dir / "run_me" / "2026-04-14-08-30-45.json"
     saved_state = json.loads(state_file.read_text(encoding="utf-8"))
 
     assert state == saved_state
@@ -356,7 +356,9 @@ def test_run_all_new_run_ignores_latest_saved_state_file(tmp_path: Path) -> None
     extract_payload_path = tmp_path / "extract.json"
     temp_db_dir = tmp_path / "temp_db"
     temp_db_dir.mkdir()
-    existing_state_file = temp_db_dir / "2026-04-14-08-30-44.json"
+    run_me_dir = temp_db_dir / "run_me"
+    run_me_dir.mkdir()
+    existing_state_file = run_me_dir / "2026-04-14-08-30-44.json"
     existing_state_file.write_text(
         json.dumps(
             {
@@ -427,7 +429,7 @@ def test_run_all_new_run_ignores_latest_saved_state_file(tmp_path: Path) -> None
         sleeper=lambda _seconds: None,
     )
 
-    new_state_file = temp_db_dir / "2026-04-14-08-30-45.json"
+    new_state_file = run_me_dir / "2026-04-14-08-30-45.json"
 
     assert existing_state_file.exists()
     assert new_state_file.exists()

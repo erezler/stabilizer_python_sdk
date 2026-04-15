@@ -56,7 +56,7 @@ Use the `run_me` module when you want the full config -> optimize -> compile -> 
 ```powershell
 py -m stabilizer_python_sdk.run_me `
   --api-key YOUR_STABILIZER_API_KEY `
-  --state-file .\temp_db\2026-04-14-08-30-45.json `
+  --state-file .\temp_db\run_me\2026-04-14-08-30-45.json `
   --temp-db-dir .\temp_db `
   --compile-payload-file .\compile.json `
   --extract-payload-file .\extract.json `
@@ -95,6 +95,8 @@ print(state)
 `config.json` should contain the LLM config request, including `name`, `provider`, `default_model`, `is_default`, `byok`, and optional `api_key`.
 `compile.json` should contain the function creation request, including the prompt, schema, and training data. `extract.json` should contain the extraction request, including `function_id`, `source_text`, and optional `options`.
 
+Standalone CLI runs also keep their latest reusable data under `.\temp_db\general\`. The workflow state used by `run_me` is stored separately under `.\temp_db\run_me\`.
+
 The files included in this repository are ready to use as examples:
 
 ```powershell
@@ -110,7 +112,7 @@ Run only the commands you need, in any order.
 py -m stabilizer_python_sdk health
 py -m stabilizer_python_sdk models
 py -m stabilizer_python_sdk config --api-key YOUR_STABILIZER_API_KEY
-py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile.json --config cfg_123
+py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\optimize.json --config cfg_123
 py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile.json --config cfg_123
 py -m stabilizer_python_sdk extract --api-key YOUR_STABILIZER_API_KEY --payload-file .\extract.json --function fn_123
 py -m stabilizer_python_sdk poll --api-key YOUR_STABILIZER_API_KEY --job job_123 --timeout 600
@@ -122,7 +124,9 @@ Notes:
 
 `config`, `optimize`, `compile`, `extract`, and `poll` require an API key from `--api-key`, `STABILIZER_API_KEY`, or `.env.local`.
 
-`state latest` reads the newest saved workflow state file under `temp_db`. `state list` shows a short summary of the most recent saved state files.
+For standalone `config`, `optimize`, `compile`, and `extract`, the CLI resolves missing inputs in this order: explicit parameter, `.\temp_db\general\`, root payload files such as `.\config.json` or `.\compile.json`, then environment-backed defaults where available.
+
+`state latest` reads the newest saved workflow state file under `.\temp_db\run_me\`. `state list` shows a short summary of the most recent saved workflow state files.
 
 ## SDK Surface
 
