@@ -30,3 +30,6 @@ def test_readme_documents_sdk_usage_paths() -> None:
     assert "config.json" in readme
 
     assert "run only the commands you need" in readme.lower()
+    assert "StabilizerAdminClient" not in readme
+    assert "/v1/admin/" not in readme
+    assert "admin api" not in readme.lower()

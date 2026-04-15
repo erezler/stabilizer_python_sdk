@@ -268,39 +268,3 @@ class StabilizerClient(_BaseClient):
             if time.monotonic() >= deadline:
                 raise TimeoutError(f"Timed out waiting for job '{job_id}'.")
             self._sleeper(poll_interval)
-
-
-class StabilizerAdminClient(_BaseClient):
-    def __init__(
-        self,
-        *,
-        admin_api_key: str,
-        base_url: str = DEFAULT_BASE_URL,
-        transport: Transport | None = None,
-        timeout: float = DEFAULT_TIMEOUT,
-    ) -> None:
-        super().__init__(base_url=base_url, transport=transport, timeout=timeout)
-        self.admin_api_key = admin_api_key
-
-    def _auth_headers(self, path: str) -> dict[str, str]:
-        return {"X-Admin-API-Key": self.admin_api_key}
-
-    def revoke_api_key(self, key_id: str) -> None:
-        self._request("DELETE", f"/v1/admin/api-keys/{key_id}")
-        return None
-
-    def list_orgs(self) -> dict[str, Any]:
-        return self._request("GET", "/v1/admin/orgs")
-
-    def create_org(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request("POST", "/v1/admin/orgs", json_body=payload)
-
-    def get_org(self, org_id: str) -> dict[str, Any]:
-        return self._request("GET", f"/v1/admin/orgs/{org_id}")
-
-    def update_org(self, org_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request("PATCH", f"/v1/admin/orgs/{org_id}", json_body=payload)
-
-    def delete_org(self, org_id: str) -> None:
-        self._request("DELETE", f"/v1/admin/orgs/{org_id}")
-        return None

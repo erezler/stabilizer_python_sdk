@@ -3,7 +3,6 @@
 from stabilizer_python_sdk.client import (
     ApiError,
     ResponseEnvelope,
-    StabilizerAdminClient,
     StabilizerClient,
 )
 from stabilizer_python_sdk.compile import CompileOptions, CompileRequest, compile_function
@@ -20,7 +19,6 @@ __all__ = [
     "LLMConfigRequest",
     "OptimizeRequest",
     "ResponseEnvelope",
-    "StabilizerAdminClient",
     "StabilizerClient",
     "TrainingExample",
     "__version__",

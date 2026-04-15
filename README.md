@@ -11,7 +11,7 @@ py -m stabilizer_python_sdk.run_me --new
 
 Standalone Python SDK and CLI for the Stabilizer API at `https://stabilizerapi.documentinsight.ai/api`.
 
-The SDK supports the public API, the admin API, and the end-to-end workflow used by the bundled `run_me` helper.
+The SDK supports the public API and the end-to-end workflow used by the bundled `run_me` helper.
 
 ## Install
 
@@ -127,12 +127,10 @@ Notes:
 ## SDK Surface
 
 ```python
-from stabilizer_python_sdk import StabilizerAdminClient, StabilizerClient
+from stabilizer_python_sdk import StabilizerClient
 ```
 
 `StabilizerClient` covers the public, org, runtime, evaluation, management, and workflow routes.
-
-`StabilizerAdminClient` covers `/v1/admin/*` routes.
 
 The SDK is synchronous and dependency-free. It uses the Python standard library HTTP stack.
 
@@ -144,15 +142,6 @@ from stabilizer_python_sdk import StabilizerClient
 client = StabilizerClient(api_key="YOUR_STABILIZER_API_KEY")
 print(client.health())
 print(client.supported_models())
-```
-
-```python
-from stabilizer_python_sdk import StabilizerAdminClient
-
-admin = StabilizerAdminClient(admin_api_key="YOUR_ADMIN_KEY")
-created = admin.create_org({"name": "Example Org"})
-print(created["org"]["org_id"])
-print(created["api_key"]["key_value"])
 ```
 
 ## Development

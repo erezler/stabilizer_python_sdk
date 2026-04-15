@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 
+import stabilizer_python_sdk.client as client_module
 from stabilizer_python_sdk import (
     ApiError,
     ResponseEnvelope,
-    StabilizerAdminClient,
     StabilizerClient,
 )
 
@@ -202,47 +203,8 @@ def test_non_successful_response_raises_api_error_with_status_and_payload() -> N
     assert "Function not found" in str(exc_info.value)
 
 
-def test_admin_client_uses_admin_header_for_admin_routes() -> None:
-    transport = FakeTransport(
-        [
-            ResponseEnvelope(
-                status_code=201,
-                data={"org": {"org_id": "org_123", "name": "Acme"}, "api_key": {"key_value": "sk_live"}},
-            )
-        ]
-    )
-    client = StabilizerAdminClient(admin_api_key="adm_test", transport=transport)
+def test_client_module_does_not_define_admin_routes() -> None:
+    assert not hasattr(client_module, "StabilizerAdminClient")
 
-    response = client.create_org({"name": "Acme"})
-
-    assert response["org"]["org_id"] == "org_123"
-    assert transport.requests == [
-        RecordedRequest(
-            method="POST",
-            url="https://stabilizerapi.documentinsight.ai/api/v1/admin/orgs",
-            headers={
-                "Content-Type": "application/json",
-                "X-Admin-API-Key": "adm_test",
-            },
-            json_body={"name": "Acme"},
-            timeout=30.0,
-        )
-    ]
-
-
-def test_admin_client_includes_admin_header_without_request_body() -> None:
-    transport = FakeTransport([ResponseEnvelope(status_code=200, data={"items": []})])
-    client = StabilizerAdminClient(admin_api_key="adm_test", transport=transport)
-
-    response = client.list_orgs()
-
-    assert response == {"items": []}
-    assert transport.requests == [
-        RecordedRequest(
-            method="GET",
-            url="https://stabilizerapi.documentinsight.ai/api/v1/admin/orgs",
-            headers={"X-Admin-API-Key": "adm_test"},
-            json_body=None,
-            timeout=30.0,
-        )
-    ]
+    client_source = Path(client_module.__file__).read_text(encoding="utf-8")
+    assert "/v1/admin/" not in client_source
