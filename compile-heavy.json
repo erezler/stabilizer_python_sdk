@@ -1,0 +1,390 @@
+{
+  "name": "Contract field extractor",
+  "description": "Extracts contract fields from text",
+  "tags": [
+    "contracts",
+    "legal",
+    "heavy"
+  ],
+  "prompt": "Extract the requested contract fields from the source text.\nReturn JSON only.\nUse this schema exactly. Each field must be an array. Use [] when nothing relevant can be found.\nGeneral goal:\nCapture the contract information that most likely answers each field, even when the text is indirect, scattered, partially defined, or expressed in unusual legal/commercial language. The source may contain multiple plausible candidates, incomplete statements, conflicting signals, defined terms, business context, carveouts, operational clauses, or facts that are only apparent when several parts of the document are read together.\nBroad extraction approach:\n- Do not limit yourself to exact formulaic matches.\n- You may use direct statements, partial statements, surrounding context, headings, definitions, recitals, signature blocks, examples, exceptions, and related operational language if they help determine what best belongs in a field.\n- Prefer capturing the text that seems most informative or most likely intended to answer the field, even if it is not perfectly phrased for that field.\n- A field may be supported by one span or by multiple separate spans. Include all spans that materially contribute to the answer.\n- When a value is not stated in a single place, you may gather nearby or related spans that, taken together, express the likely answer.\n- When the contract suggests a value without stating it in one clean sentence, extract the most relevant supporting language anyway.\n- If several different clauses could reasonably map to the same field, include the strongest candidates rather than trying to eliminate all ambiguity.\n- If a clause is conditional, limited, partial, or exception-based, it may still be relevant and should usually be included.\n- If a field is answered in a non-standard way, capture the text that best reflects the commercial or legal effect.\n- If the document uses shorthand party labels, defined terms, or role names, these may be included if useful.\n- Exact text spans are preferred, but you may select broad spans when needed to preserve meaning.\nInterpretive flexibility:\n- You may treat economically similar concepts as relevant even if the exact label differs.\n- You may treat rights, restrictions, obligations, remedies, approvals, options, thresholds, procedures, and practical limits as relevant where they appear connected to the field.\n- You may include text that points toward the answer even if it does not conclusively resolve it.\n- Where the document creates ambiguity, preserve that ambiguity by returning multiple spans rather than forcing a single narrow answer.\n- It is acceptable for one extracted span to be relevant to more than one field.\n- If a clause partly answers a field and partly answers a neighboring field, include it where it seems useful.\nDates, durations, and timing:\n- Dates may appear as signing dates, effective dates, commencement concepts, term definitions, milestone dates, anniversary references, shipment dates, trigger dates, or dates implied through other provisions.\n- If there is no single explicit date, extract language that most closely indicates when the agreement or obligation starts, applies, expires, renews, or ends.\n- Time periods, deadlines, waiting periods, cure periods, reporting periods, and survival periods may all be relevant where connected to a field.\nParties and entities:\n- Parties may appear as full legal names, abbreviations, defined labels, affiliates, agents, representatives, or signature names.\n- Include the text that best identifies the contracting side or sides, even if there are multiple ways they are referred to.\nRestrictions and rights:\n- Restrictions may be express or practical.\n- Exclusive arrangements may appear through sole rights, channel controls, sourcing obligations, territorial arrangements, approval rights, no-dealing language, or limits on competing activity.\n- Non-compete, exclusivity, no-solicit, anti-assignment, change-of-control, pricing, minimum commitment, and similar fields may be reflected through direct clauses or through business mechanics that have the same effect.\nIP and license concepts:\n- Licenses, ownership, rights of use, rights to distribute, brand use, sublicensing limits, affiliate rights, post-term rights, and retained rights may all be relevant across multiple IP-related fields.\n- Do not require formal IP drafting language if the commercial effect is similar.\nLiability and remedies:\n- Caps, carveouts, uncapped exposure, indemnities, exclusive remedies, limitations, reimbursement obligations, termination payments, interest, damages formulas, and claim restrictions may all be relevant.\n- A field can be answered by a narrow clause, a broader limitation framework, or a combination of both.\nEvidence style:\n- Return the actual text spans from the document.\n- Prefer spans that are rich enough to be useful, even if they are longer than necessary.\n- If multiple clauses together help explain the likely answer, return them all.\nFields:\n- \"Document Name\": The contract title or whatever most clearly functions as the name of the document.\n- \"Parties\": The people, companies, entities, or labeled sides involved in the agreement.\n- \"Agreement Date\": The date the agreement appears to have been made, signed, entered, dated, or otherwise formed.\n- \"Effective Date\": The date the agreement or a major set of rights/obligations appears to become effective or operative.\n- \"Expiration Date\": The date or event when the initial term appears to end.\n- \"Renewal Term\": Any text suggesting extension, continuation, rollover, renewal, or additional term.\n- \"Notice Period To Terminate Renewal\": Any notice timing related to stopping renewal, ending continuation, or preventing further term extension.\n- \"Governing Law\": Any clause about governing law, venue, jurisdiction, forum, or applicable legal regime.\n- \"Most Favored Nation\": Any language suggesting parity, equal treatment, no-worse terms, benchmark pricing, or entitlement to better third-party terms.\n- \"Non-Compete\": Any restriction that limits competing conduct, competing products, competing services, competing relationships, or competing activity.\n- \"Exclusivity\": Any language suggesting exclusivity, sole rights, sole source, sole distributor status, channel lock-in, or restrictions on working with others.\n- \"No-Solicit Of Customers\": Any restriction on approaching, taking, diverting, interfering with, or doing business with customers, prospects, partners, distributors, or similar relationships.\n- \"Competitive Restriction Exception\": Any carveout, limitation, exception, suspension, qualification, or escape from a competitive restriction.\n- \"No-Solicit Of Employees\": Any restriction on hiring, recruiting, soliciting, or engaging personnel, staff, employees, consultants, or contractors.\n- \"Non-Disparagement\": Any clause about reputation, public image, harmful statements, denigration, good faith treatment, or avoiding damaging communications.\n- \"Termination For Convenience\": Any ability to terminate without breach, without cause, at will, on notice, or under a discretionary termination right.\n- \"Rofr/Rofo/Rofn\": Any preferential opportunity, option, first look, first right, first offer, first refusal, first negotiation, or similar priority right.\n- \"Change Of Control\": Any clause dealing with ownership change, merger, acquisition, control shift, stock transfer, asset sale, or similar events.\n- \"Anti-Assignment\": Any restriction, permission requirement, condition, or consequence relating to assignment, transfer, delegation, or deemed assignment.\n- \"Revenue/Profit Sharing\": Any royalty, revenue split, profit split, participation, share of proceeds, contingent payment, or economically linked payment stream.\n- \"Price Restrictions\": Any control, adjustment, approval, limitation, formula, floor, ceiling, parity obligation, or constraint affecting prices.\n- \"Minimum Commitment\": Any quota, forecast, minimum order, minimum purchase, minimum spend, minimum output, or baseline performance expectation.\n- \"Volume Restriction\": Any threshold, usage cap, scaling consequence, consent trigger, additional fee, or limitation tied to quantity or volume.\n- \"Ip Ownership Assignment\": Any indication that IP, work product, materials, data, branding, content, or related rights vest in or transfer to a party.\n- \"Joint Ip Ownership\": Any indication of shared, joint, split, co-owned, or collaborative ownership of IP or related rights.\n- \"License Grant\": Any permission, authorization, right, license, privilege, or allowed use relating to technology, IP, branding, content, products, or materials.\n- \"Non-Transferable License\": Any text limiting transfer, assignment, sublicensing, disclosure, or downstream sharing of licensed rights.\n- \"Affiliate License-Licensor\": Any suggestion that the licensed rights come from, include, or extend to licensor affiliates.\n- \"Affiliate License-Licensee\": Any suggestion that the licensed rights extend to, may be exercised by, or benefit licensee affiliates.\n- \"Unlimited/All-You-Can-Eat-License\": Any suggestion of unlimited, enterprise-wide, unrestricted, blanket, or all-inclusive use rights.\n- \"Irrevocable Or Perpetual License\": Any suggestion that licensed rights continue indefinitely, survive broadly, are irrevocable, or are not easily withdrawn.\n- \"Source Code Escrow\": Any escrow, deposit, release mechanism, contingency access right, or similar protection involving source code or technical materials.\n- \"Post-Termination Services\": Any obligation, right, process, payment, sell-off, wind-down, transition, return, destruction, continued performance, or survival item that matters after termination or expiration.\n- \"Audit Rights\": Any inspection, review, verification, reporting backup, books-and-records access, compliance check, or monitoring right.\n- \"Uncapped Liability\": Any language suggesting liability is excluded from a cap, unlimited, preserved in full, or otherwise not subject to ordinary limits.\n- \"Cap On Liability\": Any ceiling, limitation framework, exclusive remedy, narrowed damages exposure, claim limit, or recovery restriction.\n- \"Liquidated Damages\": Any preset payment, fee, formula, agreed damages, termination charge, late fee, or similar specified monetary consequence.\n- \"Warranty Duration\": Any period, window, survival length, defect coverage duration, support duration, or timing concept tied to warranty-like protection.\n- \"Insurance\": Any requirement, expectation, standard, or evidence of insurance or coverage.\n- \"Covenant Not To Sue\": Any restriction on bringing claims, contesting rights, assisting claims, challenging ownership, or pursuing certain disputes.\n- \"Third Party Beneficiary\": Any indication that a non-party, affiliate, representative, end user, or outside person/entity benefits from or may enforce part of the agreement.",
+  "json_structure": {
+    "Document Name": [],
+    "Parties": [],
+    "Agreement Date": [],
+    "Effective Date": [],
+    "Expiration Date": [],
+    "Renewal Term": [],
+    "Notice Period To Terminate Renewal": [],
+    "Governing Law": [],
+    "Most Favored Nation": [],
+    "Non-Compete": [],
+    "Exclusivity": [],
+    "No-Solicit Of Customers": [],
+    "Competitive Restriction Exception": [],
+    "No-Solicit Of Employees": [],
+    "Non-Disparagement": [],
+    "Termination For Convenience": [],
+    "Rofr/Rofo/Rofn": [],
+    "Change Of Control": [],
+    "Anti-Assignment": [],
+    "Revenue/Profit Sharing": [],
+    "Price Restrictions": [],
+    "Minimum Commitment": [],
+    "Volume Restriction": [],
+    "Ip Ownership Assignment": [],
+    "Joint Ip Ownership": [],
+    "License Grant": [],
+    "Non-Transferable License": [],
+    "Affiliate License-Licensor": [],
+    "Affiliate License-Licensee": [],
+    "Unlimited/All-You-Can-Eat-License": [],
+    "Irrevocable Or Perpetual License": [],
+    "Source Code Escrow": [],
+    "Post-Termination Services": [],
+    "Audit Rights": [],
+    "Uncapped Liability": [],
+    "Cap On Liability": [],
+    "Liquidated Damages": [],
+    "Warranty Duration": [],
+    "Insurance": [],
+    "Covenant Not To Sue": [],
+    "Third Party Beneficiary": []
+  },
+  "training_data": [
+    {
+      "source_text": "Distributor agreement between Electric City Corp. and Electric City of Illinois LLC dated September 7, 1999. Distributor is exclusive in Illinois, may not buy products from other sources, receives a name-use license, has annual renewal rights, minimum purchase expectations, a product warranty, repurchase rights after termination, insurance coverage, nonsolicit obligations, anti-assignment limits, Illinois governing law, and an option on future products.",
+      "extracted_json": {
+        "Document Name": [
+          "DISTRIBUTOR AGREEMENT"
+        ],
+        "Parties": [
+          "Electric City Corp. (\"Company\") and Electric City of Illinois LLC (\"Distributor\")"
+        ],
+        "Agreement Date": [
+          "this 7th day of September, 1999."
+        ],
+        "Effective Date": [
+          "The term ... shall commence on the date upon which the Company delivers to Distributor the last Sample."
+        ],
+        "Expiration Date": [
+          "The term ... shall be ten (10) years."
+        ],
+        "Renewal Term": [
+          "renewable on an annual basis for one (1) year terms for up to another ten (10) years"
+        ],
+        "Governing Law": [
+          "This Agreement is to be construed according to the laws of the State of Illinois."
+        ],
+        "Non-Compete": [
+          "The Distributor shall not order or purchase Products from any source other than the Company."
+        ],
+        "Exclusivity": [
+          "The Company appoints the Distributor as an exclusive distributor of Products in the Market."
+        ],
+        "No-Solicit Of Customers": [
+          "Distributor further agrees that it will not interfere with or otherwise disrupt the business relations ... nor will Distributor solicit any customer or potential customer of Company to purchase a competitive product."
+        ],
+        "Competitive Restriction Exception": [
+          "Distributor shall not be liable or subject to reevaluation for failure to meet expectations due to occurrences beyond Distributor's reasonable control."
+        ],
+        "No-Solicit Of Employees": [
+          "the Distributor agrees that it will not directly or indirectly solicit or hire any executive, managerial or technical employee of the Company or any of its affiliates."
+        ],
+        "Termination For Convenience": [
+          "If Company terminates the Agreement without cause ... it shall repurchase from Distributor any unopened Product."
+        ],
+        "Rofr/Rofo/Rofn": [
+          "Distributor shall have the option of becoming Company's exclusive distributor of such other Products or devices within the Market."
+        ],
+        "Anti-Assignment": [
+          "No assignment of this Agreement ... shall be made by the Distributor ... without the prior written consent of the Company."
+        ],
+        "Price Restrictions": [
+          "The prices ... shall be subject to adjustment annually ... in proportion to the increase or decrease in the Consumer Price Index (CPI)."
+        ],
+        "Minimum Commitment": [
+          "A minimum of a $250,000.00 purchase order must be received by Company by the first of each month for a total (12) month period."
+        ],
+        "Volume Restriction": [
+          "Sales in excess of the expected sales ... may be applied to meet the expectations for the next Product Year."
+        ],
+        "License Grant": [
+          "The Company hereby grants the Distributor the right to do business and use the name \"Electric City of Illinois\" ..."
+        ],
+        "Non-Transferable License": [
+          "Distributor shall have no right to sublicense the Names ... without the Company's prior approval in writing."
+        ],
+        "Post-Termination Services": [
+          "Following expiration or termination ... the Distributor may continue to sell any Products in the Market which are in its inventory and which the Company has not repurchased."
+        ],
+        "Warranty Duration": [
+          "for a period of twenty-four (24) months after delivery to Distributor's end-user."
+        ],
+        "Insurance": [
+          "Company will carry a reasonable amount of product liability insurance ... and will name the Distributor as an additional insured."
+        ],
+        "Covenant Not To Sue": [
+          "the Distributor ... agrees not to commence ... any suit ... contesting the ownership, validity or enforceability of any patent, copyright, trademark, trade name or other propriety right owned by or licensed to the Company."
+        ]
+      }
+    },
+    {
+      "source_text": "Promotion and Distribution Agreement effective August 1, 2011 between Whitesmoke Inc. and Google Inc. Google grants product and trademark licenses, imposes license restrictions, includes exclusivity, audit rights, payment terms, change-of-control termination, a special suspension carveout, post-termination obligations, English governing law, uncapped liability carveouts, and liability caps.",
+      "extracted_json": {
+        "Document Name": [
+          "Promotion and Distribution Agreement"
+        ],
+        "Parties": [
+          "Whitesmoke Inc. (\"Distributor\") and Google Inc (\"Google\")"
+        ],
+        "Effective Date": [
+          "effective as of 1 August 2011 (the \"Effective Date\")"
+        ],
+        "Expiration Date": [
+          "\"Term\" means the earlier of: (a) the end of the two year period from the Effective Date to 31 July 2013; or (b) the last day of the calendar month within which the Maximum Distribution Commitment is reached."
+        ],
+        "Governing Law": [
+          "This Agreement is governed by English law and the parties submit to the exclusive jurisdiction of the English courts ..."
+        ],
+        "Non-Compete": [
+          "Distributor shall not ... restrict, modify, or reconfigure ... any of the Products ... or engage in activities that encourage Installed Base End Users to modify, uninstall or reconfigure any of the Products."
+        ],
+        "Exclusivity": [
+          "3.5 Exclusivity."
+        ],
+        "Competitive Restriction Exception": [
+          "Distributor's obligations under Clause 3.5 (Exclusivity) shall not apply ... during any period of Special Suspension."
+        ],
+        "Change Of Control": [
+          "may terminate this Agreement immediately upon written notice if there is a Change of Control"
+        ],
+        "Anti-Assignment": [
+          "may assign any of its rights or obligations under this Agreement without the prior written consent of ..."
+        ],
+        "Revenue/Profit Sharing": [
+          "Google shall pay to Distributor the applicable payment set out in Exhibit A ..."
+        ],
+        "Minimum Commitment": [
+          "\"Maximum Distribution Commitment\" means [*]."
+        ],
+        "Volume Restriction": [
+          "in no event shall the [*] paid or payable to Distributor by Google ... exceed the [*]."
+        ],
+        "License Grant": [
+          "Google grants to Distributor a [*] license during the Term to bundle, distribute, install and reproduce the Distribution Products.",
+          "Google grants to Distributor a limited, [*] license during the Term to use the Google Trademarks ..."
+        ],
+        "Non-Transferable License": [
+          "Distributor shall not ... disassemble ... modify ... provide, sell, license, distribute, lease, lend, or disclose the Products to any third party ..."
+        ],
+        "Post-Termination Services": [
+          "Upon expiration or termination of this Agreement: (a) all rights and licenses granted under this Agreement shall immediately cease ..."
+        ],
+        "Audit Rights": [
+          "Google may audit Distributor's relevant records to confirm Distributor's compliance with this Agreement."
+        ],
+        "Uncapped Liability": [
+          "Nothing in this Agreement shall exclude or limit either party's liability for ... death or personal injury ... fraud ... title or quiet enjoyment ... misuse of confidential information.",
+          "Nothing in this Agreement shall exclude or limit either party's liability under Clause 10 (Indemnities) ..."
+        ],
+        "Cap On Liability": [
+          "each party's total liability ... is limited to the greater of ..."
+        ],
+        "Liquidated Damages": [
+          "Distributor may charge interest at the rate of [*] above the base rate of Barclays Bank PLC ..."
+        ],
+        "Warranty Duration": [
+          "Google warrants that the Distribution Products will for a period of [*] from the date of their supply to Distributor be free from any defect ..."
+        ],
+        "Third Party Beneficiary": [
+          "Distributor ... will indemnify Google ... or any Google Group Company ..."
+        ]
+      }
+    },
+    {
+      "source_text": "Supply contract between Shenzhen LOHAS Supply Chain Management Co., Ltd. as buyer/end-user and a seller. It includes PRC governing law, insurance at 110% invoice value, five-year term, effectiveness on signing, late-delivery penalties, cancellation rights, claims rights, confidentiality of price, and no-court appeal language in arbitration.",
+      "extracted_json": {
+        "Document Name": [
+          "SUPPLY CONTRACT"
+        ],
+        "Parties": [
+          "The buyer/End-User: Shenzhen LOHAS Supply Chain Management Co., Ltd.",
+          "The seller:"
+        ],
+        "Agreement Date": [
+          "The Contract is concluded and signed by the Buyer and Seller on , in Hong Kong."
+        ],
+        "Effective Date": [
+          "The Contract becomes effective after signed by both parties."
+        ],
+        "Expiration Date": [
+          "The Contract is valid for 5 years ..."
+        ],
+        "Governing Law": [
+          "It will be governed by the law of the People's Republic of China, otherwise it is governed by United Nations Convention on Contract for the International Sale of Goods."
+        ],
+        "Termination For Convenience": [
+          "In case the accident lasts for more than 10 weeks, the Buyers shall have the right to cancel the Contract.",
+          "In case the Sellers fail to make delivery ten weeks later ... the Buyers have the right to cancel the contract."
+        ],
+        "Price Restrictions": [
+          "This final price is the confidential information. Dissemination, distribution or duplication of this price is strictly prohibited."
+        ],
+        "Volume Restriction": [
+          "80% of the system value being shipped will be paid ... The remaining 20% ..."
+        ],
+        "Post-Termination Services": [
+          "the seller should refund the money received and pay the 30% of the total goods price of the penalty"
+        ],
+        "Cap On Liability": [
+          "The penalty, however, shall not exceed 5% of the total value of the goods involved in the late delivery."
+        ],
+        "Liquidated Damages": [
+          "The rate of penalty is charged at 0.5% for every seven days ..."
+        ],
+        "Warranty Duration": [
+          "Within 7 days after the arrival of the goods at destination ... the Buyers ... have the right to claim for replacement with new goods, or for compensation ...",
+          "The Sellers guarantee that the commodity hereof is complies in all respects with the quality and specification stipulated in this Contract."
+        ],
+        "Insurance": [
+          "To be covered by the Seller for 110% invoice value against All Risks and War Risk."
+        ],
+        "Covenant Not To Sue": [
+          "neither party shall seek recourse to a law court nor other authorities to appeal for revision of the decision."
+        ]
+      }
+    },
+    {
+      "source_text": "Web Site Hosting Agreement dated April 6, 1999 between Centrack International and i-on interactive. It includes a six-month initial term, monthly automatic renewals with fifteen days' notice to stop renewal, termination without cause on thirty days' notice, recurring monthly fees, usage and hosting rights, a Florida governing law clause, volume limits, and a liability cap.",
+      "extracted_json": {
+        "Document Name": [
+          "WEB SITE HOSTING AGREEMENT"
+        ],
+        "Parties": [
+          "Centrack International, a Florida corporation (\"the Customer\"), and i-on interactive, a Florida corporation (\"i-on\")"
+        ],
+        "Agreement Date": [
+          "6th day of April, 1999"
+        ],
+        "Effective Date": [
+          "The term of this Agreement ... shall commence upon April 1, 1999 ..."
+        ],
+        "Expiration Date": [
+          "shall continue for a period of six (6) months"
+        ],
+        "Renewal Term": [
+          "automatically be renewed for one (1) or more one (1) month periods"
+        ],
+        "Notice Period To Terminate Renewal": [
+          "fifteen (15) days"
+        ],
+        "Governing Law": [
+          "governed by the laws and judicial decisions of the State of Florida"
+        ],
+        "Termination For Convenience": [
+          "Either party may terminate this Agreement without cause at any time effective upon thirty (30) days' written notice."
+        ],
+        "Price Restrictions": [
+          "Additional Web site administration services will be billed at $200 per hour."
+        ],
+        "Minimum Commitment": [
+          "The Customer is responsible for paying i-on the recurring monthly fee in the amount of $450."
+        ],
+        "Volume Restriction": [
+          "up to 150 MB of mirrored computer storage",
+          "up to 10 mailboxes",
+          "up to 1 hour per month of Web site administration services"
+        ],
+        "License Grant": [
+          "use of the Hosting Computer",
+          "use of the Microsoft Internet Information Service (IIS) 3.0 or higher Web server software",
+          "use of the Microsoft SQL Server 6.5 or higher database server software",
+          "access to the Hosted Site via the ftp protocol ..."
+        ],
+        "Audit Rights": [
+          "a monthly report of user activity on the Hosted Site."
+        ],
+        "Cap On Liability": [
+          "i-on's liability for damages ... shall be limited to one (1) month's fees and the remaining portion of any prepaid fees."
+        ]
+      }
+    },
+    {
+      "source_text": "Transportation Contract dated January 31, 2000 between JSC NOC KazakhOil and JSC Karakudukmunay. It defines an Effective Date, a multi-year initial term with automatic 12-month extensions and 65-day notice to stop renewal, Kazakhstan governing law, anti-assignment language, fee and payment terms, volume deviation rights, termination rights, audit/information rights, confidentiality carveouts, and an express no-third-party-beneficiary clause.",
+      "extracted_json": {
+        "Document Name": [
+          "TRANSPORTATION CONTRACT"
+        ],
+        "Parties": [
+          "JSC NOC KazakhOil (\"Company\")",
+          "JSC Karakudukmunay (\"Principal\")"
+        ],
+        "Agreement Date": [
+          "Astana January 31, 2000"
+        ],
+        "Effective Date": [
+          "\"Effective Date\" means the date of actual execution of this Contract by the Parties."
+        ],
+        "Expiration Date": [
+          "\"Initial Term\" means the period commencing on the Effective Date and concluding on the last day of the month in which the fifth anniversary of the Offtake Agreement Effective Date falls."
+        ],
+        "Renewal Term": [
+          "be prolonged, or further extended automatically for a period of 12 months"
+        ],
+        "Notice Period To Terminate Renewal": [
+          "at least 65 days prior to the end of the Initial Term, or any subsequent extension."
+        ],
+        "Governing Law": [
+          "Effective legislation of the Republic of Kazakhstan shall apply ..."
+        ],
+        "Termination For Convenience": [
+          "If performance of the obligations by any Party ... have been delayed for a period of 3 months, the other Party shall be entitled to terminate this Contract ..."
+        ],
+        "Anti-Assignment": [
+          "Neither Party shall be entitled to assign any of its rights or duties hereunder to any third parties without a written consent of the other Party thereto."
+        ],
+        "Revenue/Profit Sharing": [
+          "The Principal shall pay the Company a fee of $1.00 ... per one net tonne of Commodity shipped ..."
+        ],
+        "Price Restrictions": [
+          "pay the additional expenses if the transport tariffs are increased ..."
+        ],
+        "Volume Restriction": [
+          "The Company shall have a right to deliver Commodity to the Buyer with a permissible +/-5% deviation ..."
+        ],
+        "Post-Termination Services": [
+          "terminate this Contract, with obligatory accounts settling."
+        ],
+        "Audit Rights": [
+          "provide the Principal with information on the status of execution of this Contract;",
+          "on the Principal's request, prepare analyses of the Buyer's calculations of prices;"
+        ],
+        "Uncapped Liability": [
+          "The Parties shall be liable for non-execution and/or improper execution of their obligations ..."
+        ],
+        "Cap On Liability": [
+          "Except for the obligations to make any payment ... a Party shall not be in breach ... to the extent performance was prevented by circumstances beyond control."
+        ],
+        "Insurance": [
+          "At any time the Principal may insure this Contract at his own expense ..."
+        ],
+        "Third Party Beneficiary": [
+          "This Contract does not confer rights or remedies upon any person other than the Principal and the Company."
+        ]
+      }
+    }
+  ],
+  "grounding_methods": [
+    "hard_grounding",
+    "soft_grounding",
+    "intent_verification",
+    "constraints_validation",
+    "coverage_check",
+    "fabrication_hardening",
+    "coherence_overview",
+    "stress_test"
+  ],
+  "compile_options": {
+    "num_prompt_variations": 3
+  }
+}
