@@ -156,30 +156,10 @@ def test_walkthrough_flow_posts_expected_payloads_with_bearer_auth() -> None:
     assert transport.requests[3].json_body == extract_payload
 
 
-def test_wait_for_job_polls_until_completed_without_sleeping_after_terminal_status() -> None:
-    transport = FakeTransport(
-        [
-            ResponseEnvelope(status_code=200, data={"job_id": "job_123", "status": "queued", "progress": 0}),
-            ResponseEnvelope(status_code=200, data={"job_id": "job_123", "status": "running", "progress": 60}),
-            ResponseEnvelope(
-                status_code=200,
-                data={"job_id": "job_123", "status": "completed", "progress": 100, "result": {"ok": True}},
-            ),
-        ]
-    )
-    sleeps: list[float] = []
-    client = StabilizerClient(api_key="sk_test", transport=transport, sleeper=sleeps.append)
+def test_stabilizer_client_does_not_expose_wait_for_job() -> None:
+    client = StabilizerClient(api_key="sk_test", transport=FakeTransport([]))
 
-    job = client.wait_for_job("job_123", poll_interval=2.5, timeout=20.0)
-
-    assert job["status"] == "completed"
-    assert job["result"] == {"ok": True}
-    assert [request.url for request in transport.requests] == [
-        "https://stabilizerapi.documentinsight.ai/api/v1/jobs/job_123",
-        "https://stabilizerapi.documentinsight.ai/api/v1/jobs/job_123",
-        "https://stabilizerapi.documentinsight.ai/api/v1/jobs/job_123",
-    ]
-    assert sleeps == [2.5, 2.5]
+    assert not hasattr(client, "wait_for_job")
 
 
 def test_non_successful_response_raises_api_error_with_status_and_payload() -> None:

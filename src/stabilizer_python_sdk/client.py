@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import time
 from dataclasses import dataclass
 from typing import Any, Protocol
 from urllib.parse import urlsplit
@@ -12,9 +11,6 @@ from urllib.request import Request, urlopen
 DEFAULT_BASE_URL = "https://stabilizerapi.documentinsight.ai/api"
 DEFAULT_TIMEOUT = 30.0
 PUBLIC_PATHS = frozenset({"/v1/health", "/v1/supported-models"})
-TERMINAL_JOB_STATUSES = frozenset({"completed", "failed"})
-
-
 @dataclass(frozen=True)
 class ResponseEnvelope:
     status_code: int
@@ -169,11 +165,9 @@ class StabilizerClient(_BaseClient):
         base_url: str = DEFAULT_BASE_URL,
         transport: Transport | None = None,
         timeout: float = DEFAULT_TIMEOUT,
-        sleeper: Any = time.sleep,
     ) -> None:
         super().__init__(base_url=base_url, transport=transport, timeout=timeout)
         self.api_key = api_key
-        self._sleeper = sleeper
 
     def _auth_headers(self, path: str) -> dict[str, str]:
         if self.api_key and _normalize_path(path) not in PUBLIC_PATHS:
@@ -251,20 +245,3 @@ class StabilizerClient(_BaseClient):
 
     def evaluate_ground_truth(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._request("POST", "/v1/evaluate/gt", json_body=payload)
-
-    def wait_for_job(
-        self,
-        job_id: str,
-        *,
-        poll_interval: float = 2.0,
-        timeout: float = 600.0,
-    ) -> dict[str, Any]:
-        deadline = time.monotonic() + timeout
-        while True:
-            job = self.get_job(job_id)
-            status = str(job.get("status", "")).lower()
-            if status in TERMINAL_JOB_STATUSES:
-                return job
-            if time.monotonic() >= deadline:
-                raise TimeoutError(f"Timed out waiting for job '{job_id}'.")
-            self._sleeper(poll_interval)

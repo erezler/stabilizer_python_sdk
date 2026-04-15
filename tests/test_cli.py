@@ -40,10 +40,6 @@ class FakeClient:
         self.calls.append(("extract", payload))
         return {"job_id": "job_extract", "status": "queued"}
 
-    def wait_for_job(self, job_id: str, *, timeout: float) -> dict[str, object]:
-        self.calls.append(("wait_for_job", {"job_id": job_id, "timeout": timeout}))
-        return {"job_id": job_id, "status": "completed", "result": {"ok": True}}
-
     def set_job_sequence(self, job_id: str, jobs: list[dict[str, object]]) -> None:
         self._jobs[job_id] = list(jobs)
 
@@ -315,6 +311,14 @@ def test_compile_command_loads_payload_file_and_can_wait_for_result(
     fake_client = FakeClient(api_key="sk_test")
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+    monkeypatch.setattr(cli.time, "sleep", lambda _seconds: None)
+    fake_client.set_job_sequence(
+        "job_compile",
+        [
+            {"job_id": "job_compile", "status": "running", "progress": 40},
+            {"job_id": "job_compile", "status": "completed", "progress": 100, "result": {"ok": True}},
+        ],
+    )
 
     exit_code = cli.main(
         [
@@ -332,15 +336,35 @@ def test_compile_command_loads_payload_file_and_can_wait_for_result(
     captured = capsys.readouterr()
 
     assert exit_code == 0
-    assert json.loads(captured.out) == {
+    assert "\rProgress: 40% (running)" in captured.out
+    assert "\rProgress: 100% (completed)" in captured.out
+    assert json.loads(captured.out.split("\n", 1)[1]) == {
         "job_id": "job_compile",
         "status": "completed",
+        "progress": 100,
         "result": {"ok": True},
     }
     assert fake_client.calls == [
         ("compile_function", payload),
-        ("wait_for_job", {"job_id": "job_compile", "timeout": 42.0}),
+        ("get_job", {"job_id": "job_compile"}),
+        ("get_job", {"job_id": "job_compile"}),
     ]
+
+
+def test_wait_command_is_not_supported(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(["wait", "--api-key", "sk_test", "--job", "job_123"])
+
+    captured = capsys.readouterr()
+
+    assert exc_info.value.code == 2
+    assert "invalid choice: 'wait'" in captured.err
 
 
 def test_optimize_command_loads_payload_file_and_injects_config_id(

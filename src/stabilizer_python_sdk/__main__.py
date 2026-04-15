@@ -503,7 +503,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             result = client.optimize_prompt(request_payload)
             if parsed.wait:
-                result = client.wait_for_job(result["job_id"], timeout=parsed.timeout)
+                result = _poll_job_with_progress(
+                    client,
+                    job_id=result["job_id"],
+                    timeout=parsed.timeout,
+                )
             _save_general_payload(
                 temp_db_dir,
                 DEFAULT_OPTIMIZE_FILE,
@@ -522,7 +526,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             result = client.compile_function(request_payload)
             if parsed.wait:
-                result = client.wait_for_job(result["job_id"], timeout=parsed.timeout)
+                result = _poll_job_with_progress(
+                    client,
+                    job_id=result["job_id"],
+                    timeout=parsed.timeout,
+                )
             _save_general_payload(
                 temp_db_dir,
                 DEFAULT_COMPILE_FILE,
@@ -541,19 +549,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             result = client.extract(request_payload)
             if parsed.wait:
-                result = client.wait_for_job(result["job_id"], timeout=parsed.timeout)
+                result = _poll_job_with_progress(
+                    client,
+                    job_id=result["job_id"],
+                    timeout=parsed.timeout,
+                )
             _save_general_payload(
                 temp_db_dir,
                 DEFAULT_EXTRACT_FILE,
                 request=request_payload,
                 response=result,
             )
-            _print_json(result)
-            return 0
-
-        if parsed.command == "wait":
-            client = _make_client(api_key=_require_api_key(parsed.api_key))
-            result = client.wait_for_job(parsed.job_id, timeout=parsed.timeout)
             _print_json(result)
             return 0
 
