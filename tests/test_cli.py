@@ -300,7 +300,7 @@ def test_compile_command_requires_payload_file(
     assert "--payload-file" in captured.err
 
 
-def test_compile_command_loads_payload_file_and_can_wait_for_result(
+def test_compile_command_loads_payload_file_and_can_poll_for_result(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -327,7 +327,7 @@ def test_compile_command_loads_payload_file_and_can_wait_for_result(
             "sk_test",
             "--payload-file",
             str(payload_path),
-            "--wait",
+            "--poll",
             "--timeout",
             "42",
         ]

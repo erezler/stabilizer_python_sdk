@@ -362,7 +362,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Existing config_id to inject into the optimize payload.",
     )
     optimize_parser.add_argument(
-        "--wait",
+        "--poll",
         action="store_true",
         help="Poll the returned job until completion.",
     )
@@ -370,7 +370,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--timeout",
         type=float,
         default=600.0,
-        help="Maximum seconds to wait when --wait is used.",
+        help="Maximum seconds to wait when --poll is used.",
     )
 
     compile_parser = subparsers.add_parser(
@@ -388,7 +388,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Existing config_id to inject into the compile payload.",
     )
     compile_parser.add_argument(
-        "--wait",
+        "--poll",
         action="store_true",
         help="Poll the returned job until completion.",
     )
@@ -396,7 +396,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--timeout",
         type=float,
         default=600.0,
-        help="Maximum seconds to wait when --wait is used.",
+        help="Maximum seconds to wait when --poll is used.",
     )
 
     extract_parser = subparsers.add_parser(
@@ -414,7 +414,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Existing function_id to inject into the extraction payload.",
     )
     extract_parser.add_argument(
-        "--wait",
+        "--poll",
         action="store_true",
         help="Poll the returned job until completion.",
     )
@@ -422,7 +422,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--timeout",
         type=float,
         default=600.0,
-        help="Maximum seconds to wait when --wait is used.",
+        help="Maximum seconds to wait when --poll is used.",
     )
 
     poll_parser = subparsers.add_parser(
@@ -502,7 +502,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 command_name="optimize",
             )
             result = client.optimize_prompt(request_payload)
-            if parsed.wait:
+            if parsed.poll:
                 result = _poll_job_with_progress(
                     client,
                     job_id=result["job_id"],
@@ -525,7 +525,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 command_name="compile",
             )
             result = client.compile_function(request_payload)
-            if parsed.wait:
+            if parsed.poll:
                 result = _poll_job_with_progress(
                     client,
                     job_id=result["job_id"],
@@ -548,7 +548,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 command_name="extract",
             )
             result = client.extract(request_payload)
-            if parsed.wait:
+            if parsed.poll:
                 result = _poll_job_with_progress(
                     client,
                     job_id=result["job_id"],
