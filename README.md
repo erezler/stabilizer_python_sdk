@@ -117,7 +117,6 @@ py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-
 py -m stabilizer_python_sdk extract --api-key YOUR_STABILIZER_API_KEY --payload-file .\extract.json --function fn_123
 py -m stabilizer_python_sdk poll --api-key YOUR_STABILIZER_API_KEY --job job_123 --timeout 600
 py -m stabilizer_python_sdk state latest
-py -m stabilizer_python_sdk state list
 ```
 
 Notes:
@@ -126,7 +125,7 @@ Notes:
 
 For standalone `config`, `optimize`, `compile`, and `extract`, the CLI resolves missing inputs in this order: explicit parameter, `.\temp_db\general\`, root payload files such as `.\config.json` or `.\compile.json`, then environment-backed defaults where available.
 
-`state latest` reads the newest saved workflow state file under `.\temp_db\run_me\`. `state list` shows a short summary of the most recent saved workflow state files.
+`state latest` reads the current standalone state summary from `.\temp_db\general\`.
 
 ## SDK Surface
 

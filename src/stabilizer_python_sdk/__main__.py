@@ -268,13 +268,31 @@ def _summarize_state(path: Path) -> dict[str, Any]:
     }
 
 
-def _list_state_summaries(temp_db_dir: Path, *, limit: int = 10) -> list[dict[str, Any]]:
-    state_dir = _run_me_state_dir(temp_db_dir)
-    state_files = sorted(
-        (path for path in state_dir.glob("*.json") if path.is_file()),
-        reverse=True,
-    )
-    return [_summarize_state(path) for path in state_files[:limit]]
+def _summarize_general_state(temp_db_dir: Path) -> dict[str, Any]:
+    config_payload = _load_saved_payload_candidate(
+        _general_file(temp_db_dir, DEFAULT_CONFIG_FILE),
+        required_keys={"config_id"},
+    ) or {}
+    optimize_payload = _load_saved_payload_candidate(
+        _general_file(temp_db_dir, DEFAULT_OPTIMIZE_FILE),
+        required_keys={"job_id"},
+    ) or {}
+    compile_payload = _load_saved_payload_candidate(
+        _general_file(temp_db_dir, DEFAULT_COMPILE_FILE),
+        required_keys={"job_id"},
+    ) or {}
+    extract_payload = _load_saved_payload_candidate(
+        _general_file(temp_db_dir, DEFAULT_EXTRACT_FILE),
+        required_keys={"job_id"},
+    ) or {}
+    return {
+        "state_file": GENERAL_STATE_SUBDIR,
+        "config_id": config_payload.get("config_id"),
+        "optimize_job_id": optimize_payload.get("job_id"),
+        "compile_job_id": compile_payload.get("job_id"),
+        "function_id": _extract_function_id(compile_payload),
+        "extract_job_id": extract_payload.get("job_id"),
+    }
 
 
 def _load_request_payload(
@@ -451,12 +469,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "target",
         nargs="?",
         default="latest",
-        help="'latest', 'list', or a specific state file name.",
+        help="'latest' or a specific run_me state file name.",
     )
     state_parser.add_argument(
         "--temp-db-dir",
         default=str(DEFAULT_TEMP_DB_DIR),
-        help="Directory containing saved workflow state files.",
+        help="Directory containing saved general and run_me state files.",
     )
 
     return parser
@@ -577,8 +595,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if parsed.command == "state":
-            if parsed.target == "list":
-                _print_json(_list_state_summaries(temp_db_dir))
+            if parsed.target == "latest":
+                _print_json(_summarize_general_state(temp_db_dir))
                 return 0
             _print_json(_summarize_state(_resolve_state_path(parsed.target, temp_db_dir)))
             return 0

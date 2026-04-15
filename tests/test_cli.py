@@ -439,26 +439,13 @@ def test_state_latest_prints_latest_state_ids(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    temp_db_dir = tmp_path / "temp_db" / "run_me"
-    temp_db_dir.mkdir(parents=True)
-    _write_state(
-        temp_db_dir,
-        "2026-04-14-10-19-17.json",
-        config_id="cfg_old",
-        optimize_job_id="job_opt_old",
-        compile_job_id="job_compile_old",
-        function_id="fn_old",
-        extract_job_id="job_extract_old",
+    _write_json(tmp_path / "temp_db" / "general" / "config.json", {"config_id": "cfg_123"})
+    _write_json(tmp_path / "temp_db" / "general" / "optimize.json", {"job_id": "job_opt_123"})
+    _write_json(
+        tmp_path / "temp_db" / "general" / "compile.json",
+        {"job_id": "job_compile_123", "result": {"function_id": "fn_123"}},
     )
-    _write_state(
-        temp_db_dir,
-        "2026-04-14-10-19-18.json",
-        config_id="cfg_123",
-        optimize_job_id="job_opt_123",
-        compile_job_id="job_compile_123",
-        function_id="fn_123",
-        extract_job_id="job_extract_123",
-    )
+    _write_json(tmp_path / "temp_db" / "general" / "extract.json", {"job_id": "job_extract_123"})
     monkeypatch.chdir(tmp_path)
 
     exit_code = cli.main(["state", "latest"])
@@ -467,7 +454,7 @@ def test_state_latest_prints_latest_state_ids(
 
     assert exit_code == 0
     assert json.loads(captured.out) == {
-        "state_file": "2026-04-14-10-19-18.json",
+        "state_file": "general",
         "config_id": "cfg_123",
         "optimize_job_id": "job_opt_123",
         "compile_job_id": "job_compile_123",
@@ -476,34 +463,19 @@ def test_state_latest_prints_latest_state_ids(
     }
 
 
-def test_state_list_prints_last_ten_states(
+def test_state_list_is_not_supported(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    temp_db_dir = tmp_path / "temp_db" / "run_me"
-    temp_db_dir.mkdir(parents=True)
-    for index in range(12):
-        _write_state(
-            temp_db_dir,
-            f"2026-04-14-10-19-{index:02d}.json",
-            config_id=f"cfg_{index:02d}",
-            optimize_job_id=f"job_opt_{index:02d}",
-            compile_job_id=f"job_compile_{index:02d}",
-            function_id=f"fn_{index:02d}",
-            extract_job_id=f"job_extract_{index:02d}",
-        )
     monkeypatch.chdir(tmp_path)
 
     exit_code = cli.main(["state", "list"])
 
     captured = capsys.readouterr()
-    items = json.loads(captured.out)
 
-    assert exit_code == 0
-    assert len(items) == 10
-    assert items[0]["state_file"] == "2026-04-14-10-19-11.json"
-    assert items[-1]["state_file"] == "2026-04-14-10-19-02.json"
+    assert exit_code == 1
+    assert "State file 'list' was not found." in captured.err
 
 
 def test_state_file_name_prints_specific_state_ids(
