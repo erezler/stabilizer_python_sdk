@@ -53,9 +53,10 @@ $env:STABILIZER_PROVIDER_API_KEY = "YOUR_PROVIDER_API_KEY"
 
 Use the `run_me` module when you want the full config -> optimize -> compile -> extract flow.
 
+Once `STABILIZER_API_KEY` is set via `.env.local` or your terminal session (for example, `$env:STABILIZER_API_KEY = "YOUR_STABILIZER_API_KEY"` in PowerShell), you can omit `--api-key` from the command examples below. The fragment `--api-key YOUR_STABILIZER_API_KEY` is optional and only needed when you want to pass the key directly on a specific command.
+
 ```powershell
 py -m stabilizer_python_sdk.run_me `
-  --api-key YOUR_STABILIZER_API_KEY `
   --state-file .\temp_db\run_me\2026-04-14-08-30-45.json `
   --temp-db-dir .\temp_db `
   --compile-payload-file .\compile-input.json `
@@ -64,8 +65,6 @@ py -m stabilizer_python_sdk.run_me `
   --poll-interval 2 `
   --poll-timeout 600
 ```
-
-If `STABILIZER_API_KEY` is already set in the environment, you can omit `--api-key`.
 
 The same workflow can be controlled from code:
 
@@ -104,8 +103,8 @@ Standalone CLI runs keep their latest saved responses under `.\temp_db\general\`
 The files included in this repository are ready to use as examples:
 
 ```powershell
-py -m stabilizer_python_sdk config --api-key YOUR_STABILIZER_API_KEY --payload-file .\config-input.json
-py -m stabilizer_python_sdk.run_me --api-key YOUR_STABILIZER_API_KEY --compile-payload-file .\compile-input.json --extract-payload-file .\extract-input.json
+py -m stabilizer_python_sdk config --payload-file .\config-input.json
+py -m stabilizer_python_sdk.run_me --compile-payload-file .\compile-input.json --extract-payload-file .\extract-input.json
 ```
 
 ## Standalone Sequence
@@ -114,27 +113,27 @@ The standalone flow is easiest to follow when you treat each module output as th
 
 1. Create the config and save the latest response to `.\temp_db\general\config-output.json`.
 ```powershell
-py -m stabilizer_python_sdk config --api-key YOUR_STABILIZER_API_KEY --payload-file .\config-input.json
+py -m stabilizer_python_sdk config --payload-file .\config-input.json
 ```
 
 2. Optimize the prompt, using the `config_id` from `config-output.json`. Polling writes the latest response to `.\temp_db\general\optimize-output.json`.
 ```powershell
-py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\optimize-input.json --config cfg_123 --poll
+py -m stabilizer_python_sdk optimize --payload-file .\optimize-input.json --config cfg_123 --poll
 ```
 
 If you want that optimize step to update a compile payload automatically, pass `--alter-compile` with the compile payload path while using `--poll`. When the target compile payload does not include `compile_options.num_prompt_variations`, the CLI writes the optimize results into `compile_options.optimized_prompts`. If `num_prompt_variations` is present, the CLI keeps the count-based shape and replaces the top-level `prompt` with the first optimized prompt.
 ```powershell
-py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\optimize-input.json --config cfg_123 --poll --alter-compile .\compile-input.json
+py -m stabilizer_python_sdk optimize --payload-file .\optimize-input.json --config cfg_123 --poll --alter-compile .\compile-input.json
 ```
 
 3. Compile the function, again using the `config_id` from `config-output.json`. Polling writes the latest response to `.\temp_db\general\compile-output.json`.
 ```powershell
-py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile-input.json --config cfg_123 --poll
+py -m stabilizer_python_sdk compile --payload-file .\compile-input.json --config cfg_123 --poll
 ```
 
 4. Extract with the `function_id` from `compile-output.json`. You can either copy that value into `extract-input.json` or pass it with `--function`. Polling writes the latest response to `.\temp_db\general\extract-output.json`.
 ```powershell
-py -m stabilizer_python_sdk extract --api-key YOUR_STABILIZER_API_KEY --payload-file .\extract-input.json --function fn_123 --poll
+py -m stabilizer_python_sdk extract --payload-file .\extract-input.json --function fn_123 --poll
 ```
 
 ## Terminal Commands
@@ -144,28 +143,28 @@ Run only the commands you need, in any order.
 ```powershell
 py -m stabilizer_python_sdk health
 py -m stabilizer_python_sdk models
-py -m stabilizer_python_sdk org --api-key YOUR_STABILIZER_API_KEY
-py -m stabilizer_python_sdk org-update --api-key YOUR_STABILIZER_API_KEY --payload-file .\org-update.json
-py -m stabilizer_python_sdk api-keys --api-key YOUR_STABILIZER_API_KEY
-py -m stabilizer_python_sdk api-key-create --api-key YOUR_STABILIZER_API_KEY --payload-file .\api-key-create.json
-py -m stabilizer_python_sdk api-key-revoke --api-key YOUR_STABILIZER_API_KEY --key key_123
-py -m stabilizer_python_sdk configs --api-key YOUR_STABILIZER_API_KEY
-py -m stabilizer_python_sdk config --api-key YOUR_STABILIZER_API_KEY --payload-file .\config-input.json
-py -m stabilizer_python_sdk config-update --api-key YOUR_STABILIZER_API_KEY --config cfg_123 --payload-file .\config-update.json
-py -m stabilizer_python_sdk config-delete --api-key YOUR_STABILIZER_API_KEY --config cfg_123
-py -m stabilizer_python_sdk functions --api-key YOUR_STABILIZER_API_KEY --name Invoice --tag billing
-py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\optimize-input.json --config cfg_123 --poll --alter-compile .\compile-input.json
-py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile-input.json --config cfg_123 --poll
-py -m stabilizer_python_sdk function --api-key YOUR_STABILIZER_API_KEY --function fn_123
-py -m stabilizer_python_sdk function-update --api-key YOUR_STABILIZER_API_KEY --function fn_123 --payload-file .\function-update.json
-py -m stabilizer_python_sdk function-delete --api-key YOUR_STABILIZER_API_KEY --function fn_123
-py -m stabilizer_python_sdk extract --api-key YOUR_STABILIZER_API_KEY --payload-file .\extract-input.json --function fn_123 --poll
-py -m stabilizer_python_sdk extractions --api-key YOUR_STABILIZER_API_KEY
-py -m stabilizer_python_sdk job --api-key YOUR_STABILIZER_API_KEY --job job_123
-py -m stabilizer_python_sdk poll --api-key YOUR_STABILIZER_API_KEY --job job_123 --timeout 600
-py -m stabilizer_python_sdk usage --api-key YOUR_STABILIZER_API_KEY --from 2026-04-01 --to 2026-04-15
-py -m stabilizer_python_sdk evaluate-variance --api-key YOUR_STABILIZER_API_KEY --payload-file .\evaluate-variance.json
-py -m stabilizer_python_sdk evaluate-gt --api-key YOUR_STABILIZER_API_KEY --payload-file .\evaluate-gt.json
+py -m stabilizer_python_sdk org
+py -m stabilizer_python_sdk org-update --payload-file .\org-update.json
+py -m stabilizer_python_sdk api-keys
+py -m stabilizer_python_sdk api-key-create --payload-file .\api-key-create.json
+py -m stabilizer_python_sdk api-key-revoke --key key_123
+py -m stabilizer_python_sdk configs
+py -m stabilizer_python_sdk config --payload-file .\config-input.json
+py -m stabilizer_python_sdk config-update --config cfg_123 --payload-file .\config-update.json
+py -m stabilizer_python_sdk config-delete --config cfg_123
+py -m stabilizer_python_sdk functions --name Invoice --tag billing
+py -m stabilizer_python_sdk optimize --payload-file .\optimize-input.json --config cfg_123 --poll --alter-compile .\compile-input.json
+py -m stabilizer_python_sdk compile --payload-file .\compile-input.json --config cfg_123 --poll
+py -m stabilizer_python_sdk function --function fn_123
+py -m stabilizer_python_sdk function-update --function fn_123 --payload-file .\function-update.json
+py -m stabilizer_python_sdk function-delete --function fn_123
+py -m stabilizer_python_sdk extract --payload-file .\extract-input.json --function fn_123 --poll
+py -m stabilizer_python_sdk extractions
+py -m stabilizer_python_sdk job --job job_123
+py -m stabilizer_python_sdk poll --job job_123 --timeout 600
+py -m stabilizer_python_sdk usage --from 2026-04-01 --to 2026-04-15
+py -m stabilizer_python_sdk evaluate-variance --payload-file .\evaluate-variance.json
+py -m stabilizer_python_sdk evaluate-gt --payload-file .\evaluate-gt.json
 py -m stabilizer_python_sdk state latest
 ```
 

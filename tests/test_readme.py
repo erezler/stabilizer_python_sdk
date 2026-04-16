@@ -5,6 +5,11 @@ from pathlib import Path
 
 def test_readme_documents_sdk_usage_paths() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
+    cli_example_lines = [
+        line.strip()
+        for line in readme.splitlines()
+        if line.strip().startswith("py -m stabilizer_python_sdk")
+    ]
 
     assert ".env.local" in readme
     assert "STABILIZER_API_KEY=YOUR_STABILIZER_API_KEY" in readme
@@ -15,7 +20,11 @@ def test_readme_documents_sdk_usage_paths() -> None:
     assert "--temp-db-dir" in readme
     assert "--compile-payload-file" in readme
     assert "--extract-payload-file" in readme
-    assert "--api-key" in readme
+    assert cli_example_lines
+    assert all("--api-key YOUR_STABILIZER_API_KEY" not in line for line in cli_example_lines)
+    assert "Once `STABILIZER_API_KEY` is set via `.env.local` or your terminal session" in readme
+    assert "you can omit `--api-key` from the command examples" in readme
+    assert "`--api-key YOUR_STABILIZER_API_KEY` is optional" in readme
     assert "--new" in readme
     assert "--poll-interval" in readme
     assert "--poll-timeout" in readme
