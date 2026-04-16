@@ -12,3 +12,6 @@ authors = [{ name = "Stabilizer" }]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+markers = [
+    "integration: live round-trip CLI tests against the Stabilizer API",
+]
