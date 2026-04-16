@@ -1,10 +1,9 @@
-
-# quick start TLDR, just fill in API key and run this:
+# quick start TLDR; just fill in API key and run this:
 ```powershell
 $env:STABILIZER_API_KEY = "YOUR_STABILIZER_API_KEY"
 py -m stabilizer_python_sdk.run_me --new
 ```
-# ##################################################
+# end quick start
 
 
 # stabilizer-python-sdk
@@ -140,31 +139,37 @@ py -m stabilizer_python_sdk extract --payload-file .\extract-input.json --functi
 
 Run only the commands you need, in any order.
 
+Commands needed for regular flow:
 ```powershell
-py -m stabilizer_python_sdk health
-py -m stabilizer_python_sdk models
-py -m stabilizer_python_sdk org
-py -m stabilizer_python_sdk org-update --payload-file .\org-update.json
-py -m stabilizer_python_sdk api-keys
-py -m stabilizer_python_sdk api-key-create --payload-file .\api-key-create.json
-py -m stabilizer_python_sdk api-key-revoke --key key_123
-py -m stabilizer_python_sdk configs
-py -m stabilizer_python_sdk config --payload-file .\config-input.json
-py -m stabilizer_python_sdk config-update --config cfg_123 --payload-file .\config-update.json
-py -m stabilizer_python_sdk config-delete --config cfg_123
-py -m stabilizer_python_sdk functions --name Invoice --tag billing
-py -m stabilizer_python_sdk optimize --payload-file .\optimize-input.json --config cfg_123 --poll --alter-compile .\compile-input.json
-py -m stabilizer_python_sdk compile --payload-file .\compile-input.json --config cfg_123 --poll
-py -m stabilizer_python_sdk function --function fn_123
-py -m stabilizer_python_sdk function-update --function fn_123 --payload-file .\function-update.json
-py -m stabilizer_python_sdk function-delete --function fn_123
-py -m stabilizer_python_sdk extract --payload-file .\extract-input.json --function fn_123 --poll
-py -m stabilizer_python_sdk extractions
-py -m stabilizer_python_sdk job --job job_123
-py -m stabilizer_python_sdk poll --job job_123 --timeout 600
-py -m stabilizer_python_sdk usage --from 2026-04-01 --to 2026-04-15
-py -m stabilizer_python_sdk state latest
+py -m stabilizer_python_sdk config --payload-file .\config-input.json # create config
+py -m stabilizer_python_sdk optimize --payload-file .\optimize-input.json --config cfg_123 --poll --alter-compile .\compile-input.json # optimize prompt
+py -m stabilizer_python_sdk compile --payload-file .\compile-input.json --config cfg_123 --poll # compile function
+py -m stabilizer_python_sdk extract --payload-file .\extract-input.json --function fn_123 --poll # extract data
+py -m stabilizer_python_sdk poll --job job_123 --timeout 600 # poll job (not needed when using --poll in commands above)
 ```
+
+Other commands:
+```powershell
+py -m stabilizer_python_sdk health # check if the service is alive
+py -m stabilizer_python_sdk models # list available models
+py -m stabilizer_python_sdk org # get organization info
+py -m stabilizer_python_sdk org-update --payload-file .\org-update.json # update organization info
+py -m stabilizer_python_sdk api-keys # list api keys
+py -m stabilizer_python_sdk api-key-create --payload-file .\api-key-create.json # create api key
+py -m stabilizer_python_sdk api-key-revoke --key key_123 # revoke api key
+py -m stabilizer_python_sdk configs # list configs
+py -m stabilizer_python_sdk config-update --config cfg_123 --payload-file .\config-update.json # update config
+py -m stabilizer_python_sdk config-delete --config cfg_123 # delete config
+py -m stabilizer_python_sdk functions --name Invoice --tag billing # list compiled functions
+py -m stabilizer_python_sdk function --function fn_123 # get compiled function info
+py -m stabilizer_python_sdk function-update --function fn_123 --payload-file .\function-update.json # update compiled function metadata
+py -m stabilizer_python_sdk function-delete --function fn_123 # delete compiled function
+py -m stabilizer_python_sdk extractions # list previous extractions
+py -m stabilizer_python_sdk job --job job_123 # get job info
+py -m stabilizer_python_sdk usage --from 2026-04-01 --to 2026-04-15 # get usage info
+py -m stabilizer_python_sdk state latest # get current state summary
+```
+
 
 Notes:
 
@@ -192,10 +197,4 @@ from stabilizer_python_sdk import StabilizerClient
 client = StabilizerClient(api_key="YOUR_STABILIZER_API_KEY")
 print(client.health())
 print(client.supported_models())
-```
-
-## Development
-
-```powershell
-py -m pytest tests
 ```
