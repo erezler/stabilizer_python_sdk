@@ -122,7 +122,12 @@ py -m stabilizer_python_sdk config --api-key YOUR_STABILIZER_API_KEY --payload-f
 py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\optimize-input.json --config cfg_123 --poll
 ```
 
-3. Compile the function, again using the `config_id` from `config-output.json`. If you want to use the optimized prompt, copy `result.optimized_prompt` from `optimize-output.json` into `compile-input.json` before running compile. Polling writes the latest response to `.\temp_db\general\compile-output.json`.
+If you want that optimize step to update a compile payload automatically, pass `--alter-compile` with the compile payload path while using `--poll`.
+```powershell
+py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\optimize-input.json --config cfg_123 --poll --alter-compile .\compile-input.json
+```
+
+3. Compile the function, again using the `config_id` from `config-output.json`. Polling writes the latest response to `.\temp_db\general\compile-output.json`.
 ```powershell
 py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile-input.json --config cfg_123 --poll
 ```
@@ -141,6 +146,7 @@ py -m stabilizer_python_sdk health
 py -m stabilizer_python_sdk models
 py -m stabilizer_python_sdk config --api-key YOUR_STABILIZER_API_KEY --payload-file .\config-input.json
 py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\optimize-input.json --config cfg_123
+py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\optimize-input.json --config cfg_123 --poll --alter-compile .\compile-input.json
 py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile-input.json --config cfg_123
 py -m stabilizer_python_sdk extract --api-key YOUR_STABILIZER_API_KEY --payload-file .\extract-input.json --function fn_123
 py -m stabilizer_python_sdk poll --api-key YOUR_STABILIZER_API_KEY --job job_123 --timeout 600

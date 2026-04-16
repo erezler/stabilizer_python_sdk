@@ -30,6 +30,39 @@
         "has_live_music": true,
         "sponsor_name": null
       }
+    },
+    {
+      "source_text": "Riverfront Makers Day is scheduled for August 9, 2026. Entry costs $7. The flyer says the program is recommended for ages 13 and up. Acoustic performers will play throughout the afternoon. The event is presented by Lantern Mobile.",
+      "extracted_json": {
+        "event_title": "Riverfront Makers Day",
+        "start_date": "2026-08-09",
+        "ticket_price_usd": 7,
+        "audience_rating": "teen",
+        "has_live_music": true,
+        "sponsor_name": "Lantern Mobile"
+      }
+    },
+    {
+      "source_text": "Skyline Board Game Night starts on December 5, 2026, at Civic Loft. Tickets are $9. The poster says it is open to all ages. A house DJ will play between tournament rounds. The event is backed by Cedar Street Bank.",
+      "extracted_json": {
+        "event_title": "Skyline Board Game Night",
+        "start_date": "2026-12-05",
+        "ticket_price_usd": 9,
+        "audience_rating": "general",
+        "has_live_music": true,
+        "sponsor_name": "Cedar Street Bank"
+      }
+    },
+    {
+      "source_text": "The Neon Comics Swap lands at Warehouse Annex on July 18, 2026. Admission is $14. The listing recommends the late session for teens. No live music will be part of the program. The event announcement does not mention a sponsor.",
+      "extracted_json": {
+        "event_title": "Neon Comics Swap",
+        "start_date": "2026-07-18",
+        "ticket_price_usd": 14,
+        "audience_rating": "teen",
+        "has_live_music": false,
+        "sponsor_name": null
+      }
     }
   ],
   "grounding_methods": [

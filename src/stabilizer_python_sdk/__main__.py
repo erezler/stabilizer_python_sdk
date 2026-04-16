@@ -17,6 +17,7 @@ DEFAULT_CONFIG_OUTPUT_FILE = Path("config-output.json")
 DEFAULT_OPTIMIZE_OUTPUT_FILE = Path("optimize-output.json")
 DEFAULT_COMPILE_OUTPUT_FILE = Path("compile-output.json")
 DEFAULT_EXTRACT_OUTPUT_FILE = Path("extract-output.json")
+DEFAULT_ASYNC_JOB_INDEX_FILE = Path("async-job-index.json")
 GENERAL_STATE_SUBDIR = "general"
 RUN_ME_STATE_SUBDIR = "run_me"
 DEFAULT_POLL_INTERVAL = 2.0
@@ -170,8 +171,82 @@ def _save_general_payload(
     target.write_text(json.dumps(dict(response), indent=2), encoding="utf-8")
 
 
+def _alter_compile_payload_with_optimized_prompt(
+    compile_payload_file: str | Path,
+    *,
+    optimize_result: dict[str, Any],
+) -> None:
+    result_payload = optimize_result.get("result")
+    if not isinstance(result_payload, dict):
+        raise ValueError("Optimize result did not include a result object.")
+    optimized_prompt = result_payload.get("optimized_prompt")
+    if not isinstance(optimized_prompt, str) or not optimized_prompt:
+        raise ValueError("Optimize result did not include result.optimized_prompt.")
+
+    compile_payload_path = Path(compile_payload_file)
+    compile_payload = _read_payload(str(compile_payload_path))
+    compile_payload["prompt"] = optimized_prompt
+    compile_payload_path.write_text(json.dumps(compile_payload, indent=2), encoding="utf-8")
+
+
+def _load_async_job_index(temp_db_dir: Path) -> dict[str, str]:
+    path = _general_file(temp_db_dir, DEFAULT_ASYNC_JOB_INDEX_FILE)
+    if not path.is_file():
+        return {}
+    payload = _read_payload(str(path))
+    if not isinstance(payload, dict):
+        return {}
+    index: dict[str, str] = {}
+    for raw_job_id, raw_command_name in payload.items():
+        if isinstance(raw_job_id, str) and isinstance(raw_command_name, str):
+            index[raw_job_id] = raw_command_name
+    return index
+
+
+def _save_async_job_type(temp_db_dir: Path, *, job_id: str, command_name: str) -> None:
+    index = _load_async_job_index(temp_db_dir)
+    index[job_id] = command_name
+    path = _general_file(temp_db_dir, DEFAULT_ASYNC_JOB_INDEX_FILE)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(index, indent=2), encoding="utf-8")
+
+
+def _infer_job_type_from_saved_outputs(temp_db_dir: Path, *, job_id: str) -> str | None:
+    for candidate_type, candidate_file in (
+        ("optimize", DEFAULT_OPTIMIZE_OUTPUT_FILE),
+        ("compile", DEFAULT_COMPILE_OUTPUT_FILE),
+        ("extract", DEFAULT_EXTRACT_OUTPUT_FILE),
+    ):
+        saved_payload = _load_saved_response_candidate(
+            _general_file(temp_db_dir, candidate_file),
+            required_keys={"job_id"},
+        )
+        if saved_payload is not None and str(saved_payload.get("job_id")) == job_id:
+            return candidate_type
+    return None
+
+
+def _resolve_polled_job_type(temp_db_dir: Path, job: dict[str, Any]) -> str | None:
+    explicit_type = job.get("type")
+    if explicit_type is not None:
+        normalized_explicit_type = str(explicit_type).lower()
+        if normalized_explicit_type:
+            return normalized_explicit_type
+
+    job_id = job.get("job_id")
+    if job_id is None:
+        return None
+
+    normalized_job_id = str(job_id)
+    indexed_type = _load_async_job_index(temp_db_dir).get(normalized_job_id)
+    if indexed_type:
+        return indexed_type.lower()
+
+    return _infer_job_type_from_saved_outputs(temp_db_dir, job_id=normalized_job_id)
+
+
 def _save_polled_job_result(temp_db_dir: Path, job: dict[str, Any]) -> None:
-    job_type = str(job.get("type", "")).lower()
+    job_type = _resolve_polled_job_type(temp_db_dir, job)
     target_file: Path | None = None
     if job_type == "optimize":
         target_file = _general_file(temp_db_dir, DEFAULT_OPTIMIZE_OUTPUT_FILE)
@@ -344,6 +419,11 @@ def _build_parser() -> argparse.ArgumentParser:
         default=600.0,
         help="Maximum seconds to wait when --poll is used.",
     )
+    optimize_parser.add_argument(
+        "--alter-compile",
+        default=None,
+        help="Path to a compile payload file whose prompt will be replaced with result.optimized_prompt after polling.",
+    )
 
     compile_parser = subparsers.add_parser(
         "compile",
@@ -467,12 +547,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if parsed.command == "optimize":
             client = _make_client(api_key=_require_api_key(parsed.api_key))
+            if parsed.alter_compile is not None and not parsed.poll:
+                raise ValueError("--alter-compile requires --poll.")
             request_payload = _load_request_payload(
                 parsed.payload_file,
                 config_id=parsed.config,
                 command_name="optimize",
             )
             result = client.optimize_prompt(request_payload)
+            _save_async_job_type(temp_db_dir, job_id=str(result["job_id"]), command_name="optimize")
             if parsed.poll:
                 result = _poll_job_with_progress(
                     client,
@@ -484,6 +567,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                     DEFAULT_OPTIMIZE_OUTPUT_FILE,
                     response=result,
                 )
+                if parsed.alter_compile is not None:
+                    _alter_compile_payload_with_optimized_prompt(
+                        parsed.alter_compile,
+                        optimize_result=result,
+                    )
             _print_json(result)
             return 0
 
@@ -495,6 +583,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 command_name="compile",
             )
             result = client.compile_function(request_payload)
+            _save_async_job_type(temp_db_dir, job_id=str(result["job_id"]), command_name="compile")
             if parsed.poll:
                 result = _poll_job_with_progress(
                     client,
@@ -517,6 +606,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 command_name="extract",
             )
             result = client.extract(request_payload)
+            _save_async_job_type(temp_db_dir, job_id=str(result["job_id"]), command_name="extract")
             if parsed.poll:
                 result = _poll_job_with_progress(
                     client,

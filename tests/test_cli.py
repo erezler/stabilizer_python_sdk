@@ -414,6 +414,106 @@ def test_optimize_command_loads_payload_file_and_injects_config_id(
     ]
 
 
+def test_optimize_command_with_poll_and_alter_compile_updates_compile_payload_prompt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    optimize_payload = {"prompt": "Extract", "json_structure": {"field": "string"}, "training_data": []}
+    optimize_payload_path = tmp_path / "optimize-input.json"
+    compile_payload_path = tmp_path / "compile-input.json"
+    _write_json(optimize_payload_path, optimize_payload)
+    _write_json(
+        compile_payload_path,
+        {
+            "name": "Example",
+            "prompt": "Old prompt",
+            "json_structure": {"field": "string"},
+            "training_data": [],
+        },
+    )
+    fake_client = FakeClient(api_key="sk_test")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+    monkeypatch.setattr(cli.time, "sleep", lambda _seconds: None)
+    fake_client.set_job_sequence(
+        "job_optimize",
+        [
+            {"job_id": "job_optimize", "status": "running", "progress": 40},
+            {
+                "job_id": "job_optimize",
+                "status": "completed",
+                "progress": 100,
+                "result": {"optimized_prompt": "Better prompt"},
+            },
+        ],
+    )
+
+    exit_code = cli.main(
+        [
+            "optimize",
+            "--api-key",
+            "sk_test",
+            "--payload-file",
+            str(optimize_payload_path),
+            "--poll",
+            "--alter-compile",
+            str(compile_payload_path),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    saved_compile_payload = json.loads(compile_payload_path.read_text(encoding="utf-8"))
+
+    assert exit_code == 0
+    assert json.loads(captured.out.split("\n", 1)[1]) == {
+        "job_id": "job_optimize",
+        "status": "completed",
+        "progress": 100,
+        "result": {"optimized_prompt": "Better prompt"},
+    }
+    assert saved_compile_payload == {
+        "name": "Example",
+        "prompt": "Better prompt",
+        "json_structure": {"field": "string"},
+        "training_data": [],
+    }
+
+
+def test_optimize_command_rejects_alter_compile_without_poll(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    optimize_payload_path = tmp_path / "optimize-input.json"
+    compile_payload_path = tmp_path / "compile-input.json"
+    _write_json(optimize_payload_path, {"prompt": "Extract", "json_structure": {"field": "string"}, "training_data": []})
+    _write_json(
+        compile_payload_path,
+        {"name": "Example", "prompt": "Old prompt", "json_structure": {"field": "string"}},
+    )
+    fake_client = FakeClient(api_key="sk_test")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(
+        [
+            "optimize",
+            "--api-key",
+            "sk_test",
+            "--payload-file",
+            str(optimize_payload_path),
+            "--alter-compile",
+            str(compile_payload_path),
+        ]
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "--alter-compile requires --poll" in captured.err
+
+
 def test_compile_command_injects_config_id(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,
@@ -934,6 +1034,61 @@ def test_optimize_command_does_not_update_general_without_poll(
     assert json.loads(captured.out) == {"job_id": "job_optimize", "status": "queued"}
     assert fake_client.calls == [("optimize_prompt", payload)]
     assert saved == {"job_id": "job_old", "status": "queued"}
+
+
+def test_poll_command_updates_optimize_output_after_separate_optimize_submission_without_type(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload = {"prompt": "Extract", "json_structure": {"field": "string"}, "training_data": []}
+    payload_path = tmp_path / "optimize-input.json"
+    _write_json(payload_path, payload)
+    fake_client = FakeClient(api_key="sk_test")
+    fake_client.set_job_sequence(
+        "job_optimize",
+        [
+            {"job_id": "job_optimize", "status": "running", "progress": 50},
+            {
+                "job_id": "job_optimize",
+                "status": "completed",
+                "progress": 100,
+                "result": {"optimized_prompt": "Better prompt"},
+            },
+        ],
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+    monkeypatch.setattr(cli.time, "sleep", lambda _seconds: None)
+
+    submit_exit_code = cli.main(["optimize", "--api-key", "sk_test", "--payload-file", str(payload_path)])
+    submit_output = capsys.readouterr()
+
+    poll_exit_code = cli.main(["poll", "--api-key", "sk_test", "--job", "job_optimize", "--timeout", "90"])
+    poll_output = capsys.readouterr()
+
+    saved = json.loads((tmp_path / "temp_db" / "general" / "optimize-output.json").read_text(encoding="utf-8"))
+
+    assert submit_exit_code == 0
+    assert json.loads(submit_output.out) == {"job_id": "job_optimize", "status": "queued"}
+    assert poll_exit_code == 0
+    assert json.loads(poll_output.out.split("\n", 1)[1]) == {
+        "job_id": "job_optimize",
+        "status": "completed",
+        "progress": 100,
+        "result": {"optimized_prompt": "Better prompt"},
+    }
+    assert fake_client.calls == [
+        ("optimize_prompt", payload),
+        ("get_job", {"job_id": "job_optimize"}),
+        ("get_job", {"job_id": "job_optimize"}),
+    ]
+    assert saved == {
+        "job_id": "job_optimize",
+        "status": "completed",
+        "progress": 100,
+        "result": {"optimized_prompt": "Better prompt"},
+    }
 
 
 def test_optimize_command_requires_payload_file(
