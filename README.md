@@ -1,5 +1,5 @@
 
-# quick start TLDR, just run this:
+# quick start TLDR, just fill in API key and run this:
 ```powershell
 $env:STABILIZER_API_KEY = "YOUR_STABILIZER_API_KEY"
 py -m stabilizer_python_sdk.run_me --new
@@ -29,10 +29,8 @@ Create a `.env.local` file in the project root:
 
 ```powershell
 STABILIZER_API_KEY=YOUR_STABILIZER_API_KEY
-STABILIZER_PROVIDER_API_KEY=YOUR_PROVIDER_API_KEY
+STABILIZER_PROVIDER_API_KEY=YOUR_PROVIDER_API_KEY # when using BYOK
 ```
-
-`STABILIZER_PROVIDER_API_KEY` is optional. Set it only when you want the workflow config to use BYOK for the provider.
 
 ### Option 2: Terminal Session Variable
 
@@ -48,6 +46,8 @@ If you want the workflow config to use BYOK (in addition to the above):
 ```powershell
 $env:STABILIZER_PROVIDER_API_KEY = "YOUR_PROVIDER_API_KEY"
 ```
+`STABILIZER_PROVIDER_API_KEY` is optional. Set it only when you want the workflow config to use BYOK for the provider (currently only openrouter is supported)
+
 
 ## Run The Workflow
 
@@ -103,8 +103,8 @@ Standalone CLI runs keep their latest saved responses under `.\temp_db\general\`
 The files included in this repository are ready to use as examples:
 
 ```powershell
-py -m stabilizer_python_sdk config --payload-file .\config-input.json
-py -m stabilizer_python_sdk.run_me --compile-payload-file .\compile-input.json --extract-payload-file .\extract-input.json
+py -m stabilizer_python_sdk config --payload-file .\config-input.json # example config
+py -m stabilizer_python_sdk.run_me --compile-payload-file .\compile-input.json --extract-payload-file .\extract-input.json # example workflow
 ```
 
 ## Standalone Sequence
@@ -116,7 +116,7 @@ The standalone flow is easiest to follow when you treat each module output as th
 py -m stabilizer_python_sdk config --payload-file .\config-input.json
 ```
 
-2. Optimize the prompt, using the `config_id` from `config-output.json`. Polling writes the latest response to `.\temp_db\general\optimize-output.json`.
+2. [Optional] Optimize the prompt, using the `config_id` from `config-output.json`. Polling writes the latest response to `.\temp_db\general\optimize-output.json`.
 ```powershell
 py -m stabilizer_python_sdk optimize --payload-file .\optimize-input.json --config cfg_123 --poll
 ```
@@ -163,8 +163,6 @@ py -m stabilizer_python_sdk extractions
 py -m stabilizer_python_sdk job --job job_123
 py -m stabilizer_python_sdk poll --job job_123 --timeout 600
 py -m stabilizer_python_sdk usage --from 2026-04-01 --to 2026-04-15
-py -m stabilizer_python_sdk evaluate-variance --payload-file .\evaluate-variance.json
-py -m stabilizer_python_sdk evaluate-gt --payload-file .\evaluate-gt.json
 py -m stabilizer_python_sdk state latest
 ```
 

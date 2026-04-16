@@ -137,7 +137,8 @@ def test_main_without_args_prints_help(capsys: pytest.CaptureFixture[str]) -> No
     assert "configs" in captured.out
     assert "functions" in captured.out
     assert "usage" in captured.out
-    assert "evaluate-variance" in captured.out
+    assert "evaluate-variance" not in captured.out
+    assert "evaluate-gt" not in captured.out
     assert "wait" not in captured.out
 
 
@@ -490,42 +491,19 @@ def test_usage_command_forwards_query_arguments(
     assert fake_client.calls == [("get_usage", {"from": "2026-04-01", "to": "2026-04-15"})]
 
 
-def test_evaluate_variance_command_loads_payload_file(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("command", ["evaluate-variance", "evaluate-gt"])
+def test_removed_evaluation_commands_are_not_available(
+    command: str,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    payload_path = tmp_path / "evaluate-variance.json"
-    _write_json(payload_path, {"extractions": [{"field": "a"}, {"field": "b"}, {"field": "c"}]})
-    fake_client = FakeClient()
-    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
-
-    exit_code = cli.main(["evaluate-variance", "--api-key", "sk_test", "--payload-file", str(payload_path)])
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main([command])
 
     captured = capsys.readouterr()
 
-    assert exit_code == 0
-    assert json.loads(captured.out) == {"score": 0.91}
-    assert fake_client.calls == [("evaluate_variance", {"extractions": [{"field": "a"}, {"field": "b"}, {"field": "c"}]})]
-
-
-def test_evaluate_gt_command_loads_payload_file(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    payload_path = tmp_path / "evaluate-gt.json"
-    _write_json(payload_path, {"ground_truth": {"field": "a"}, "results": {"field": "a"}})
-    fake_client = FakeClient()
-    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
-
-    exit_code = cli.main(["evaluate-gt", "--api-key", "sk_test", "--payload-file", str(payload_path)])
-
-    captured = capsys.readouterr()
-
-    assert exit_code == 0
-    assert json.loads(captured.out) == {"score": 0.98}
-    assert fake_client.calls == [("evaluate_ground_truth", {"ground_truth": {"field": "a"}, "results": {"field": "a"}})]
+    assert exc_info.value.code == 2
+    assert "invalid choice" in captured.err
+    assert command in captured.err
 
 
 def test_config_command_requires_payload_file(

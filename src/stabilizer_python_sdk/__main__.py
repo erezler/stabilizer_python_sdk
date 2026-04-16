@@ -620,28 +620,6 @@ def _build_parser() -> argparse.ArgumentParser:
     usage_parser.add_argument("--from", dest="from_", default=None, help="Lower bound usage date filter.")
     usage_parser.add_argument("--to", default=None, help="Upper bound usage date filter.")
 
-    evaluate_variance_parser = subparsers.add_parser(
-        "evaluate-variance",
-        help="Run POST /v1/evaluate/variance with a JSON payload file.",
-    )
-    evaluate_variance_parser.add_argument("--api-key", help="Stabilizer API key.")
-    evaluate_variance_parser.add_argument(
-        "--payload-file",
-        default=None,
-        help="Path to a JSON file for the variance evaluation request body.",
-    )
-
-    evaluate_gt_parser = subparsers.add_parser(
-        "evaluate-gt",
-        help="Run POST /v1/evaluate/gt with a JSON payload file.",
-    )
-    evaluate_gt_parser.add_argument("--api-key", help="Stabilizer API key.")
-    evaluate_gt_parser.add_argument(
-        "--payload-file",
-        default=None,
-        help="Path to a JSON file for the ground truth evaluation request body.",
-    )
-
     state_parser = subparsers.add_parser(
         "state",
         help="Read ids from saved workflow state files under temp_db.",
@@ -874,22 +852,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         if parsed.command == "usage":
             client = _make_client(api_key=_require_api_key(parsed.api_key))
             _print_json(client.get_usage(from_=parsed.from_, to=parsed.to))
-            return 0
-
-        if parsed.command == "evaluate-variance":
-            client = _make_client(api_key=_require_api_key(parsed.api_key))
-            result = client.evaluate_variance(
-                _read_payload(_require_payload_file(parsed.payload_file, command_name="evaluate-variance"))
-            )
-            _print_json(result)
-            return 0
-
-        if parsed.command == "evaluate-gt":
-            client = _make_client(api_key=_require_api_key(parsed.api_key))
-            result = client.evaluate_ground_truth(
-                _read_payload(_require_payload_file(parsed.payload_file, command_name="evaluate-gt"))
-            )
-            _print_json(result)
             return 0
 
         if parsed.command == "state":

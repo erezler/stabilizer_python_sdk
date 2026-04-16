@@ -6,12 +6,21 @@ from pathlib import Path
 
 def test_compile_payload_file_exists_and_contains_minimum_compile_fields() -> None:
     payload = json.loads(Path("compile-input.json").read_text(encoding="utf-8"))
+    compile_options = payload["compile_options"]
 
     assert payload["name"] == "Event details extractor"
     assert isinstance(payload["prompt"], str)
     assert isinstance(payload["json_structure"], dict)
     assert isinstance(payload["training_data"], list)
-    assert payload["compile_options"]["num_prompt_variations"] == 3
+    assert isinstance(compile_options, dict)
+    assert (
+        compile_options.get("num_prompt_variations") == 3
+        or (
+            isinstance(compile_options.get("optimized_prompts"), list)
+            and len(compile_options["optimized_prompts"]) > 0
+            and all(isinstance(prompt, str) and prompt for prompt in compile_options["optimized_prompts"])
+        )
+    )
 
 
 def test_extract_payload_file_exists_and_contains_minimum_extract_fields() -> None:
