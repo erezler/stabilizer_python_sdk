@@ -137,8 +137,8 @@ def test_run_all_loads_requests_updates_same_state_file_and_uses_compiled_functi
     client = FakeWorkflowRunClient()
     output = io.StringIO()
     console = WorkflowConsole(stream=output)
-    compile_payload_path = tmp_path / "compile.json"
-    extract_payload_path = tmp_path / "extract.json"
+    compile_payload_path = tmp_path / "compile-input.json"
+    extract_payload_path = tmp_path / "extract-input.json"
     temp_db_dir = tmp_path / "temp_db"
 
     compile_payload_path.write_text(
@@ -282,8 +282,8 @@ def test_run_all_runs_without_provider_api_key_for_byok_optional_workflow(
     client = FakeWorkflowRunClient()
     output = io.StringIO()
     console = WorkflowConsole(stream=output)
-    compile_payload_path = tmp_path / "compile.json"
-    extract_payload_path = tmp_path / "extract.json"
+    compile_payload_path = tmp_path / "compile-input.json"
+    extract_payload_path = tmp_path / "extract-input.json"
     temp_db_dir = tmp_path / "temp_db"
 
     monkeypatch.delenv("STABILIZER_PROVIDER_API_KEY", raising=False)
@@ -352,8 +352,8 @@ def test_run_all_new_run_ignores_latest_saved_state_file(tmp_path: Path) -> None
     client = FakeWorkflowRunClient()
     output = io.StringIO()
     console = WorkflowConsole(stream=output)
-    compile_payload_path = tmp_path / "compile.json"
-    extract_payload_path = tmp_path / "extract.json"
+    compile_payload_path = tmp_path / "compile-input.json"
+    extract_payload_path = tmp_path / "extract-input.json"
     temp_db_dir = tmp_path / "temp_db"
     temp_db_dir.mkdir()
     run_me_dir = temp_db_dir / "run_me"
@@ -439,8 +439,8 @@ def test_run_all_new_run_ignores_latest_saved_state_file(tmp_path: Path) -> None
 
 def test_main_passes_new_flag_into_settings(monkeypatch, tmp_path: Path) -> None:
     captured: dict[str, object] = {}
-    compile_payload_path = tmp_path / "compile.json"
-    extract_payload_path = tmp_path / "extract.json"
+    compile_payload_path = tmp_path / "compile-input.json"
+    extract_payload_path = tmp_path / "extract-input.json"
     compile_payload_path.write_text("{}", encoding="utf-8")
     extract_payload_path.write_text("{}", encoding="utf-8")
 

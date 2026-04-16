@@ -27,7 +27,8 @@ def test_readme_documents_sdk_usage_paths() -> None:
     assert "py -m stabilizer_python_sdk poll" in readme
     assert "py -m stabilizer_python_sdk state latest" in readme
     assert "temp_db\\general" in readme
-    assert "config.json" in readme
+    assert "config-input.json" in readme
+    assert "compile-output.json" in readme
 
     assert "run only the commands you need" in readme.lower()
     assert "StabilizerAdminClient" not in readme

@@ -58,8 +58,8 @@ py -m stabilizer_python_sdk.run_me `
   --api-key YOUR_STABILIZER_API_KEY `
   --state-file .\temp_db\run_me\2026-04-14-08-30-45.json `
   --temp-db-dir .\temp_db `
-  --compile-payload-file .\compile.json `
-  --extract-payload-file .\extract.json `
+  --compile-payload-file .\compile-input.json `
+  --extract-payload-file .\extract-input.json `
   --new `
   --poll-interval 2 `
   --poll-timeout 600
@@ -81,8 +81,8 @@ state = run_all(
         temp_db_dir=Path("temp_db"),
         state_file=None,
         new_run=True,
-        compile_payload_file=Path("compile.json"),
-        extract_payload_file=Path("extract.json"),
+        compile_payload_file=Path("compile-input.json"),
+        extract_payload_file=Path("extract-input.json"),
         poll_interval=2.0,
         poll_timeout=600.0,
     )
@@ -92,16 +92,44 @@ print(state)
 
 ## Workflow Payload Files
 
-`config.json` should contain the LLM config request, including `name`, `provider`, `default_model`, `is_default`, `byok`, and optional `api_key`.
-`compile.json` should contain the function creation request, including the prompt, schema, and training data. `extract.json` should contain the extraction request, including `function_id`, `source_text`, and optional `options`.
+Use `*-input.json` for request bodies and `*-output.json` for saved standalone responses.
+
+`config-input.json` contains the LLM config request, including `name`, `provider`, `default_model`, `is_default`, `byok`, and optional `api_key`.
+`optimize-input.json` contains the prompt optimization request, including `prompt`, `json_structure`, and `training_data`.
+`compile-input.json` contains the function creation request, including the prompt, schema, and training data.
+`extract-input.json` contains the extraction request, including `function_id`, `source_text`, and optional `options`.
 
 Standalone CLI runs keep their latest saved responses under `.\temp_db\general\`. For async standalone commands, `optimize`, `compile`, and `extract` update those saved responses only when you poll a job, either with `py -m stabilizer_python_sdk poll` or by passing `--poll`. The workflow state used by `run_me` is stored separately under `.\temp_db\run_me\`.
 
 The files included in this repository are ready to use as examples:
 
 ```powershell
-py -m stabilizer_python_sdk.config --api-key YOUR_STABILIZER_API_KEY --payload-file .\config.json
-py -m stabilizer_python_sdk.run_me --api-key YOUR_STABILIZER_API_KEY --compile-payload-file .\compile.json --extract-payload-file .\extract.json
+py -m stabilizer_python_sdk config --api-key YOUR_STABILIZER_API_KEY --payload-file .\config-input.json
+py -m stabilizer_python_sdk.run_me --api-key YOUR_STABILIZER_API_KEY --compile-payload-file .\compile-input.json --extract-payload-file .\extract-input.json
+```
+
+## Standalone Sequence
+
+The standalone flow is easiest to follow when you treat each module output as the source of the next module's IDs.
+
+1. Create the config and save the latest response to `.\temp_db\general\config-output.json`.
+```powershell
+py -m stabilizer_python_sdk config --api-key YOUR_STABILIZER_API_KEY --payload-file .\config-input.json
+```
+
+2. Optimize the prompt, using the `config_id` from `config-output.json`. Polling writes the latest response to `.\temp_db\general\optimize-output.json`.
+```powershell
+py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\optimize-input.json --config cfg_123 --poll
+```
+
+3. Compile the function, again using the `config_id` from `config-output.json`. If you want to use the optimized prompt, copy `result.optimized_prompt` from `optimize-output.json` into `compile-input.json` before running compile. Polling writes the latest response to `.\temp_db\general\compile-output.json`.
+```powershell
+py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile-input.json --config cfg_123 --poll
+```
+
+4. Extract with the `function_id` from `compile-output.json`. You can either copy that value into `extract-input.json` or pass it with `--function`. Polling writes the latest response to `.\temp_db\general\extract-output.json`.
+```powershell
+py -m stabilizer_python_sdk extract --api-key YOUR_STABILIZER_API_KEY --payload-file .\extract-input.json --function fn_123 --poll
 ```
 
 ## Terminal Commands
@@ -111,10 +139,10 @@ Run only the commands you need, in any order.
 ```powershell
 py -m stabilizer_python_sdk health
 py -m stabilizer_python_sdk models
-py -m stabilizer_python_sdk config --api-key YOUR_STABILIZER_API_KEY --payload-file .\config.json
-py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile.json --config cfg_123
-py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile.json --config cfg_123
-py -m stabilizer_python_sdk extract --api-key YOUR_STABILIZER_API_KEY --payload-file .\extract.json --function fn_123
+py -m stabilizer_python_sdk config --api-key YOUR_STABILIZER_API_KEY --payload-file .\config-input.json
+py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\optimize-input.json --config cfg_123
+py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile-input.json --config cfg_123
+py -m stabilizer_python_sdk extract --api-key YOUR_STABILIZER_API_KEY --payload-file .\extract-input.json --function fn_123
 py -m stabilizer_python_sdk poll --api-key YOUR_STABILIZER_API_KEY --job job_123 --timeout 600
 py -m stabilizer_python_sdk state latest
 ```
@@ -125,7 +153,7 @@ Notes:
 
 Standalone `config`, `optimize`, `compile`, and `extract` require an explicit `--payload-file`. The only environment-backed defaults for those standalone runs are `STABILIZER_API_KEY` and `STABILIZER_PROVIDER_API_KEY`.
 
-`state latest` reads the current standalone state summary from `.\temp_db\general\`.
+`state latest` reads the current standalone state summary from `.\temp_db\general\`, using `config-output.json`, `optimize-output.json`, `compile-output.json`, and `extract-output.json`.
 
 ## SDK Surface
 

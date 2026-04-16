@@ -177,7 +177,7 @@ def test_config_command_uses_provider_api_key_from_env_when_payload_omits_it(
         "is_default": True,
         "byok": True,
     }
-    payload_path = tmp_path / "config.json"
+    payload_path = tmp_path / "config-input.json"
     payload_path.write_text(json.dumps(payload), encoding="utf-8")
     (tmp_path / ".env.local").write_text(
         "STABILIZER_API_KEY=sk_from_env\nSTABILIZER_PROVIDER_API_KEY=provider_from_env\n",
@@ -224,7 +224,7 @@ def test_compile_command_uses_api_key_from_env_local(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     payload = {"name": "Example", "prompt": "Extract", "json_structure": {"field": "string"}}
-    payload_path = tmp_path / "compile.json"
+    payload_path = tmp_path / "compile-input.json"
     payload_path.write_text(json.dumps(payload), encoding="utf-8")
     (tmp_path / ".env.local").write_text("STABILIZER_API_KEY=sk_from_env\n", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
@@ -261,7 +261,7 @@ def test_compile_command_errors_when_api_key_missing_everywhere(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     payload = {"name": "Example", "prompt": "Extract", "json_structure": {"field": "string"}}
-    payload_path = tmp_path / "compile.json"
+    payload_path = tmp_path / "compile-input.json"
     payload_path.write_text(json.dumps(payload), encoding="utf-8")
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("STABILIZER_API_KEY", raising=False)
@@ -286,7 +286,7 @@ def test_compile_command_requires_payload_file(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    (tmp_path / "compile.json").write_text(
+    (tmp_path / "compile-input.json").write_text(
         json.dumps({"name": "Example", "prompt": "Extract", "json_structure": {"field": "string"}}),
         encoding="utf-8",
     )
@@ -306,7 +306,7 @@ def test_compile_command_loads_payload_file_and_can_poll_for_result(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     payload = {"name": "Example", "prompt": "Extract", "json_structure": {"field": "string"}}
-    payload_path = tmp_path / "compile.json"
+    payload_path = tmp_path / "compile-input.json"
     payload_path.write_text(json.dumps(payload), encoding="utf-8")
     fake_client = FakeClient(api_key="sk_test")
     monkeypatch.chdir(tmp_path)
@@ -334,7 +334,7 @@ def test_compile_command_loads_payload_file_and_can_poll_for_result(
     )
 
     captured = capsys.readouterr()
-    saved = json.loads((tmp_path / "temp_db" / "general" / "compile.json").read_text(encoding="utf-8"))
+    saved = json.loads((tmp_path / "temp_db" / "general" / "compile-output.json").read_text(encoding="utf-8"))
 
     assert exit_code == 0
     assert "\rProgress: 40% (running)" in captured.out
@@ -355,7 +355,6 @@ def test_compile_command_loads_payload_file_and_can_poll_for_result(
         "status": "completed",
         "progress": 100,
         "result": {"ok": True},
-        "_request": payload,
     }
 
 
@@ -381,7 +380,7 @@ def test_optimize_command_loads_payload_file_and_injects_config_id(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     payload = {"prompt": "Extract", "json_structure": {"field": "string"}, "training_data": []}
-    payload_path = tmp_path / "optimize.json"
+    payload_path = tmp_path / "optimize-input.json"
     payload_path.write_text(json.dumps(payload), encoding="utf-8")
     fake_client = FakeClient(api_key="sk_test")
     monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
@@ -421,7 +420,7 @@ def test_compile_command_injects_config_id(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     payload = {"name": "Example", "prompt": "Extract", "json_structure": {"field": "string"}}
-    payload_path = tmp_path / "compile.json"
+    payload_path = tmp_path / "compile-input.json"
     payload_path.write_text(json.dumps(payload), encoding="utf-8")
     fake_client = FakeClient(api_key="sk_test")
     monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
@@ -461,7 +460,7 @@ def test_extract_command_loads_payload_file_and_prints_queued_job(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     payload = {"function_id": "fn_123", "source_text": "hello"}
-    payload_path = tmp_path / "extract.json"
+    payload_path = tmp_path / "extract-input.json"
     payload_path.write_text(json.dumps(payload), encoding="utf-8")
     fake_client = FakeClient(api_key="sk_test")
     monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
@@ -489,7 +488,7 @@ def test_extract_command_injects_function_id(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     payload = {"function_id": "fn_replace_me", "source_text": "hello"}
-    payload_path = tmp_path / "extract.json"
+    payload_path = tmp_path / "extract-input.json"
     payload_path.write_text(json.dumps(payload), encoding="utf-8")
     fake_client = FakeClient(api_key="sk_test")
     monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
@@ -527,45 +526,28 @@ def test_state_latest_prints_latest_state_ids(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     _write_json(
-        tmp_path / "temp_db" / "general" / "config.json",
+        tmp_path / "temp_db" / "general" / "config-output.json",
         {
             "config_id": "cfg_123",
-            "_request": {
-                "name": "Primary config",
-                "provider": "openrouter",
-                "default_model": "google/gemini-2.5-flash-lite",
-            },
         },
     )
     _write_json(
-        tmp_path / "temp_db" / "general" / "optimize.json",
+        tmp_path / "temp_db" / "general" / "optimize-output.json",
         {
             "job_id": "job_opt_123",
-            "_request": {
-                "prompt": "Optimize",
-                "config_id": "cfg_123",
-            },
         },
     )
     _write_json(
-        tmp_path / "temp_db" / "general" / "compile.json",
+        tmp_path / "temp_db" / "general" / "compile-output.json",
         {
             "job_id": "job_compile_123",
             "result": {"function_id": "fn_123"},
-            "_request": {
-                "name": "Compile",
-                "config_id": "cfg_123",
-            },
         },
     )
     _write_json(
-        tmp_path / "temp_db" / "general" / "extract.json",
+        tmp_path / "temp_db" / "general" / "extract-output.json",
         {
             "job_id": "job_extract_123",
-            "_request": {
-                "function_id": "fn_123",
-                "source_text": "hello",
-            },
         },
     )
     monkeypatch.chdir(tmp_path)
@@ -707,15 +689,10 @@ def test_poll_command_updates_general_compile_file_for_compile_jobs(
         ],
     )
     _write_json(
-        tmp_path / "temp_db" / "general" / "compile.json",
+        tmp_path / "temp_db" / "general" / "compile-output.json",
         {
             "job_id": "job_compile_123",
             "status": "queued",
-            "_request": {
-                "name": "Compile",
-                "prompt": "Extract",
-                "json_structure": {"field": "string"},
-            },
         },
     )
     monkeypatch.chdir(tmp_path)
@@ -735,8 +712,7 @@ def test_poll_command_updates_general_compile_file_for_compile_jobs(
     )
 
     captured = capsys.readouterr()
-    saved = json.loads((tmp_path / "temp_db" / "general" / "compile.json").read_text(encoding="utf-8"))
-    saved = json.loads((tmp_path / "temp_db" / "general" / "compile.json").read_text(encoding="utf-8"))
+    saved = json.loads((tmp_path / "temp_db" / "general" / "compile-output.json").read_text(encoding="utf-8"))
 
     assert exit_code == 0
     assert json.loads(captured.out.split("\n", 1)[1]) == {
@@ -752,11 +728,6 @@ def test_poll_command_updates_general_compile_file_for_compile_jobs(
         "progress": 100,
         "type": "compile",
         "result": {"function_id": "fn_123"},
-        "_request": {
-            "name": "Compile",
-            "prompt": "Extract",
-            "json_structure": {"field": "string"},
-        },
     }
 
 
@@ -780,15 +751,10 @@ def test_poll_command_updates_general_optimize_file_for_optimize_jobs(
         ],
     )
     _write_json(
-        tmp_path / "temp_db" / "general" / "optimize.json",
+        tmp_path / "temp_db" / "general" / "optimize-output.json",
         {
             "job_id": "job_optimize_123",
             "status": "queued",
-            "_request": {
-                "prompt": "Extract",
-                "json_structure": {"field": "string"},
-                "training_data": [],
-            },
         },
     )
     monkeypatch.chdir(tmp_path)
@@ -808,7 +774,7 @@ def test_poll_command_updates_general_optimize_file_for_optimize_jobs(
     )
 
     captured = capsys.readouterr()
-    saved = json.loads((tmp_path / "temp_db" / "general" / "optimize.json").read_text(encoding="utf-8"))
+    saved = json.loads((tmp_path / "temp_db" / "general" / "optimize-output.json").read_text(encoding="utf-8"))
 
     assert exit_code == 0
     assert json.loads(captured.out.split("\n", 1)[1]) == {
@@ -824,11 +790,6 @@ def test_poll_command_updates_general_optimize_file_for_optimize_jobs(
         "progress": 100,
         "type": "optimize",
         "result": {"optimized_prompt": "Better prompt"},
-        "_request": {
-            "prompt": "Extract",
-            "json_structure": {"field": "string"},
-            "training_data": [],
-        },
     }
 
 
@@ -852,14 +813,10 @@ def test_poll_command_updates_general_extract_file_for_extract_jobs(
         ],
     )
     _write_json(
-        tmp_path / "temp_db" / "general" / "extract.json",
+        tmp_path / "temp_db" / "general" / "extract-output.json",
         {
             "job_id": "job_extract_123",
             "status": "queued",
-            "_request": {
-                "function_id": "fn_123",
-                "source_text": "hello",
-            },
         },
     )
     monkeypatch.chdir(tmp_path)
@@ -879,7 +836,7 @@ def test_poll_command_updates_general_extract_file_for_extract_jobs(
     )
 
     captured = capsys.readouterr()
-    saved = json.loads((tmp_path / "temp_db" / "general" / "extract.json").read_text(encoding="utf-8"))
+    saved = json.loads((tmp_path / "temp_db" / "general" / "extract-output.json").read_text(encoding="utf-8"))
 
     assert exit_code == 0
     assert json.loads(captured.out.split("\n", 1)[1]) == {
@@ -895,10 +852,6 @@ def test_poll_command_updates_general_extract_file_for_extract_jobs(
         "progress": 100,
         "type": "extract",
         "result": {"field": "value"},
-        "_request": {
-            "function_id": "fn_123",
-            "source_text": "hello",
-        },
     }
 
 
@@ -914,9 +867,9 @@ def test_config_command_uses_explicit_payload_file_and_saves_latest_response(
         "is_default": True,
         "byok": True,
     }
-    payload_path = tmp_path / "config.json"
+    payload_path = tmp_path / "config-input.json"
     _write_json(payload_path, payload)
-    _write_json(tmp_path / "temp_db" / "general" / "config.json", {"config_id": "cfg_old"})
+    _write_json(tmp_path / "temp_db" / "general" / "config-output.json", {"config_id": "cfg_old"})
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("STABILIZER_PROVIDER_API_KEY", raising=False)
     reloaded = importlib.reload(cli)
@@ -926,14 +879,13 @@ def test_config_command_uses_explicit_payload_file_and_saves_latest_response(
     exit_code = reloaded.main(["config", "--api-key", "sk_test", "--payload-file", str(payload_path)])
 
     captured = capsys.readouterr()
-    saved = json.loads((tmp_path / "temp_db" / "general" / "config.json").read_text(encoding="utf-8"))
+    saved = json.loads((tmp_path / "temp_db" / "general" / "config-output.json").read_text(encoding="utf-8"))
 
     assert exit_code == 0
     assert json.loads(captured.out) == {"config_id": "cfg_123", "status": "created"}
     assert fake_client.calls == [("create_llm_config", payload)]
     assert saved["config_id"] == "cfg_123"
     assert saved["status"] == "created"
-    assert saved["_request"] == payload
 
 
 def test_compile_command_does_not_update_general_without_poll(
@@ -942,9 +894,9 @@ def test_compile_command_does_not_update_general_without_poll(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     payload = {"name": "Example", "prompt": "Extract", "json_structure": {"field": "string"}}
-    payload_path = tmp_path / "compile.json"
+    payload_path = tmp_path / "compile-input.json"
     _write_json(payload_path, payload)
-    _write_json(tmp_path / "temp_db" / "general" / "compile.json", {"job_id": "job_old", "status": "queued"})
+    _write_json(tmp_path / "temp_db" / "general" / "compile-output.json", {"job_id": "job_old", "status": "queued"})
     fake_client = FakeClient(api_key="sk_test")
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
@@ -952,7 +904,7 @@ def test_compile_command_does_not_update_general_without_poll(
     exit_code = cli.main(["compile", "--api-key", "sk_test", "--payload-file", str(payload_path)])
 
     captured = capsys.readouterr()
-    saved = json.loads((tmp_path / "temp_db" / "general" / "compile.json").read_text(encoding="utf-8"))
+    saved = json.loads((tmp_path / "temp_db" / "general" / "compile-output.json").read_text(encoding="utf-8"))
 
     assert exit_code == 0
     assert json.loads(captured.out) == {"job_id": "job_compile", "status": "queued"}
@@ -966,9 +918,9 @@ def test_optimize_command_does_not_update_general_without_poll(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     payload = {"prompt": "Extract", "json_structure": {"field": "string"}, "training_data": []}
-    payload_path = tmp_path / "optimize.json"
+    payload_path = tmp_path / "optimize-input.json"
     _write_json(payload_path, payload)
-    _write_json(tmp_path / "temp_db" / "general" / "optimize.json", {"job_id": "job_old", "status": "queued"})
+    _write_json(tmp_path / "temp_db" / "general" / "optimize-output.json", {"job_id": "job_old", "status": "queued"})
     fake_client = FakeClient(api_key="sk_test")
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
@@ -976,7 +928,7 @@ def test_optimize_command_does_not_update_general_without_poll(
     exit_code = cli.main(["optimize", "--api-key", "sk_test", "--payload-file", str(payload_path)])
 
     captured = capsys.readouterr()
-    saved = json.loads((tmp_path / "temp_db" / "general" / "optimize.json").read_text(encoding="utf-8"))
+    saved = json.loads((tmp_path / "temp_db" / "general" / "optimize-output.json").read_text(encoding="utf-8"))
 
     assert exit_code == 0
     assert json.loads(captured.out) == {"job_id": "job_optimize", "status": "queued"}
@@ -989,7 +941,7 @@ def test_optimize_command_requires_payload_file(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    (tmp_path / "optimize.json").write_text(
+    (tmp_path / "optimize-input.json").write_text(
         json.dumps({"prompt": "Extract", "json_structure": {"field": "string"}, "training_data": []}),
         encoding="utf-8",
     )
@@ -1009,9 +961,9 @@ def test_extract_command_does_not_update_general_without_poll(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     payload = {"function_id": "fn_replace_me", "source_text": "hello"}
-    payload_path = tmp_path / "extract.json"
+    payload_path = tmp_path / "extract-input.json"
     _write_json(payload_path, payload)
-    _write_json(tmp_path / "temp_db" / "general" / "extract.json", {"job_id": "job_old", "status": "queued"})
+    _write_json(tmp_path / "temp_db" / "general" / "extract-output.json", {"job_id": "job_old", "status": "queued"})
     fake_client = FakeClient(api_key="sk_test")
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
@@ -1019,7 +971,7 @@ def test_extract_command_does_not_update_general_without_poll(
     exit_code = cli.main(["extract", "--api-key", "sk_test", "--payload-file", str(payload_path)])
 
     captured = capsys.readouterr()
-    saved = json.loads((tmp_path / "temp_db" / "general" / "extract.json").read_text(encoding="utf-8"))
+    saved = json.loads((tmp_path / "temp_db" / "general" / "extract-output.json").read_text(encoding="utf-8"))
 
     assert exit_code == 0
     assert json.loads(captured.out) == {"job_id": "job_extract", "status": "queued"}
@@ -1032,7 +984,7 @@ def test_extract_command_requires_payload_file(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    (tmp_path / "extract.json").write_text(
+    (tmp_path / "extract-input.json").write_text(
         json.dumps({"function_id": "fn_123", "source_text": "hello"}),
         encoding="utf-8",
     )

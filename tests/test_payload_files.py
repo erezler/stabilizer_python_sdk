@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 def test_compile_payload_file_exists_and_contains_minimum_compile_fields() -> None:
-    payload = json.loads(Path("compile.json").read_text(encoding="utf-8"))
+    payload = json.loads(Path("compile-input.json").read_text(encoding="utf-8"))
 
     assert payload["name"] == "Event details extractor"
     assert isinstance(payload["prompt"], str)
@@ -15,7 +15,7 @@ def test_compile_payload_file_exists_and_contains_minimum_compile_fields() -> No
 
 
 def test_extract_payload_file_exists_and_contains_minimum_extract_fields() -> None:
-    payload = json.loads(Path("extract.json").read_text(encoding="utf-8"))
+    payload = json.loads(Path("extract-input.json").read_text(encoding="utf-8"))
 
     assert payload["function_id"] == "fn_replace_me"
     assert isinstance(payload["source_text"], str)
@@ -23,7 +23,7 @@ def test_extract_payload_file_exists_and_contains_minimum_extract_fields() -> No
 
 
 def test_compile_heavy_payload_file_exists_and_contains_contract_fixture_fields() -> None:
-    payload = json.loads(Path("compile-heavy.json").read_text(encoding="utf-8"))
+    payload = json.loads(Path("compile-heavy-input.json").read_text(encoding="utf-8"))
 
     assert payload["name"] == "Contract field extractor"
     assert isinstance(payload["prompt"], str)
@@ -35,7 +35,7 @@ def test_compile_heavy_payload_file_exists_and_contains_contract_fixture_fields(
 
 
 def test_extract_heavy_payload_file_exists_and_contains_contract_fixture_fields() -> None:
-    payload = json.loads(Path("extract-heavy.json").read_text(encoding="utf-8"))
+    payload = json.loads(Path("extract-heavy-input.json").read_text(encoding="utf-8"))
 
     assert payload["function_id"] == "fn_replace_me"
     assert isinstance(payload["source_text"], str)

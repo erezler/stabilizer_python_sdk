@@ -13,10 +13,10 @@ from stabilizer_python_sdk import ApiError, StabilizerClient
 from stabilizer_python_sdk.config import LLMConfigRequest
 
 DEFAULT_TEMP_DB_DIR = Path("temp_db")
-DEFAULT_CONFIG_FILE = Path("config.json")
-DEFAULT_OPTIMIZE_FILE = Path("optimize.json")
-DEFAULT_COMPILE_FILE = Path("compile.json")
-DEFAULT_EXTRACT_FILE = Path("extract.json")
+DEFAULT_CONFIG_OUTPUT_FILE = Path("config-output.json")
+DEFAULT_OPTIMIZE_OUTPUT_FILE = Path("optimize-output.json")
+DEFAULT_COMPILE_OUTPUT_FILE = Path("compile-output.json")
+DEFAULT_EXTRACT_OUTPUT_FILE = Path("extract-output.json")
 GENERAL_STATE_SUBDIR = "general"
 RUN_ME_STATE_SUBDIR = "run_me"
 DEFAULT_POLL_INTERVAL = 2.0
@@ -92,28 +92,8 @@ def _general_file(temp_db_dir: Path, filename: str | Path) -> Path:
     return _general_dir(temp_db_dir) / Path(filename).name
 
 
-def _saved_request_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    request = payload.get("_request")
-    if isinstance(request, dict):
-        return request
-    return payload
-
-
 def _payload_has_keys(payload: dict[str, Any], required_keys: set[str]) -> bool:
     return required_keys.issubset(payload.keys())
-
-
-def _load_saved_payload_candidate(
-    path: Path,
-    *,
-    required_keys: set[str],
-) -> dict[str, Any] | None:
-    if not path.is_file():
-        return None
-    payload = _saved_request_payload(_read_payload(str(path)))
-    if _payload_has_keys(payload, required_keys):
-        return payload
-    return None
 
 
 def _load_saved_response_candidate(
@@ -183,38 +163,28 @@ def _save_general_payload(
     temp_db_dir: Path,
     filename: str | Path,
     *,
-    request: dict[str, Any],
     response: dict[str, Any],
 ) -> None:
     target = _general_file(temp_db_dir, filename)
     target.parent.mkdir(parents=True, exist_ok=True)
-    payload = dict(response)
-    payload["_request"] = request
-    target.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    target.write_text(json.dumps(dict(response), indent=2), encoding="utf-8")
 
 
 def _save_polled_job_result(temp_db_dir: Path, job: dict[str, Any]) -> None:
     job_type = str(job.get("type", "")).lower()
     target_file: Path | None = None
     if job_type == "optimize":
-        target_file = _general_file(temp_db_dir, DEFAULT_OPTIMIZE_FILE)
+        target_file = _general_file(temp_db_dir, DEFAULT_OPTIMIZE_OUTPUT_FILE)
     elif job_type == "compile":
-        target_file = _general_file(temp_db_dir, DEFAULT_COMPILE_FILE)
+        target_file = _general_file(temp_db_dir, DEFAULT_COMPILE_OUTPUT_FILE)
     elif job_type == "extract":
-        target_file = _general_file(temp_db_dir, DEFAULT_EXTRACT_FILE)
+        target_file = _general_file(temp_db_dir, DEFAULT_EXTRACT_OUTPUT_FILE)
 
     if target_file is None:
         return
 
-    payload = dict(job)
-    if target_file.is_file():
-        existing_payload = _read_payload(str(target_file))
-        existing_request = existing_payload.get("_request")
-        if isinstance(existing_request, dict):
-            payload["_request"] = existing_request
-
     target_file.parent.mkdir(parents=True, exist_ok=True)
-    target_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    target_file.write_text(json.dumps(dict(job), indent=2), encoding="utf-8")
 
 
 def _latest_state_file(temp_db_dir: Path) -> Path:
@@ -256,19 +226,19 @@ def _summarize_state(path: Path) -> dict[str, Any]:
 
 def _summarize_general_state(temp_db_dir: Path) -> dict[str, Any]:
     config_payload = _load_saved_response_candidate(
-        _general_file(temp_db_dir, DEFAULT_CONFIG_FILE),
+        _general_file(temp_db_dir, DEFAULT_CONFIG_OUTPUT_FILE),
         required_keys={"config_id"},
     ) or {}
     optimize_payload = _load_saved_response_candidate(
-        _general_file(temp_db_dir, DEFAULT_OPTIMIZE_FILE),
+        _general_file(temp_db_dir, DEFAULT_OPTIMIZE_OUTPUT_FILE),
         required_keys={"job_id"},
     ) or {}
     compile_payload = _load_saved_response_candidate(
-        _general_file(temp_db_dir, DEFAULT_COMPILE_FILE),
+        _general_file(temp_db_dir, DEFAULT_COMPILE_OUTPUT_FILE),
         required_keys={"job_id"},
     ) or {}
     extract_payload = _load_saved_response_candidate(
-        _general_file(temp_db_dir, DEFAULT_EXTRACT_FILE),
+        _general_file(temp_db_dir, DEFAULT_EXTRACT_OUTPUT_FILE),
         required_keys={"job_id"},
     ) or {}
     return {
@@ -489,8 +459,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             result = client.create_llm_config(request_payload)
             _save_general_payload(
                 temp_db_dir,
-                DEFAULT_CONFIG_FILE,
-                request=request_payload,
+                DEFAULT_CONFIG_OUTPUT_FILE,
                 response=result,
             )
             _print_json(result)
@@ -512,8 +481,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
                 _save_general_payload(
                     temp_db_dir,
-                    DEFAULT_OPTIMIZE_FILE,
-                    request=request_payload,
+                    DEFAULT_OPTIMIZE_OUTPUT_FILE,
                     response=result,
                 )
             _print_json(result)
@@ -535,8 +503,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
                 _save_general_payload(
                     temp_db_dir,
-                    DEFAULT_COMPILE_FILE,
-                    request=request_payload,
+                    DEFAULT_COMPILE_OUTPUT_FILE,
                     response=result,
                 )
             _print_json(result)
@@ -558,8 +525,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
                 _save_general_payload(
                     temp_db_dir,
-                    DEFAULT_EXTRACT_FILE,
-                    request=request_payload,
+                    DEFAULT_EXTRACT_OUTPUT_FILE,
                     response=result,
                 )
             _print_json(result)
