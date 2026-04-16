@@ -474,9 +474,12 @@ def test_optimize_command_with_poll_and_alter_compile_updates_compile_payload_pr
     }
     assert saved_compile_payload == {
         "name": "Example",
-        "prompt": "Better prompt",
+        "prompt": "Old prompt",
         "json_structure": {"field": "string"},
         "training_data": [],
+        "compile_options": {
+            "optimized_prompts": ["Better prompt"],
+        },
     }
 
 
@@ -545,9 +548,12 @@ def test_optimize_command_with_alter_compile_uses_first_optimized_prompt_from_li
     }
     assert saved_compile_payload == {
         "name": "Example",
-        "prompt": "Better prompt 1",
+        "prompt": "Old prompt",
         "json_structure": {"field": "string"},
         "training_data": [],
+        "compile_options": {
+            "optimized_prompts": ["Better prompt 1", "Better prompt 2"],
+        },
     }
 
 

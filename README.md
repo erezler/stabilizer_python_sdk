@@ -122,7 +122,7 @@ py -m stabilizer_python_sdk config --api-key YOUR_STABILIZER_API_KEY --payload-f
 py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\optimize-input.json --config cfg_123 --poll
 ```
 
-If you want that optimize step to update a compile payload automatically, pass `--alter-compile` with the compile payload path while using `--poll`. When the optimize result includes `optimized_prompts`, the CLI writes the first prompt into the compile payload's `prompt` field.
+If you want that optimize step to update a compile payload automatically, pass `--alter-compile` with the compile payload path while using `--poll`. When the target compile payload does not include `compile_options.num_prompt_variations`, the CLI writes the optimize results into `compile_options.optimized_prompts`. If `num_prompt_variations` is present, the CLI keeps the count-based shape and replaces the top-level `prompt` with the first optimized prompt.
 ```powershell
 py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\optimize-input.json --config cfg_123 --poll --alter-compile .\compile-input.json
 ```

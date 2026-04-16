@@ -179,24 +179,34 @@ def _alter_compile_payload_with_optimized_prompt(
     result_payload = optimize_result.get("result")
     if not isinstance(result_payload, dict):
         raise ValueError("Optimize result did not include a result object.")
+    optimized_prompts = result_payload.get("optimized_prompts")
+    resolved_optimized_prompts: list[str] = []
+    if isinstance(optimized_prompts, list):
+        resolved_optimized_prompts = [
+            candidate
+            for candidate in optimized_prompts
+            if isinstance(candidate, str) and candidate
+        ]
     optimized_prompt = result_payload.get("optimized_prompt")
-    if not isinstance(optimized_prompt, str) or not optimized_prompt:
-        optimized_prompts = result_payload.get("optimized_prompts")
-        if isinstance(optimized_prompts, list):
-            optimized_prompt = next(
-                (
-                    candidate
-                    for candidate in optimized_prompts
-                    if isinstance(candidate, str) and candidate
-                ),
-                None,
-            )
-    if not isinstance(optimized_prompt, str) or not optimized_prompt:
+    if isinstance(optimized_prompt, str) and optimized_prompt:
+        if not resolved_optimized_prompts:
+            resolved_optimized_prompts = [optimized_prompt]
+    if not resolved_optimized_prompts:
         raise ValueError("Optimize result did not include result.optimized_prompt or result.optimized_prompts.")
 
     compile_payload_path = Path(compile_payload_file)
     compile_payload = _read_payload(str(compile_payload_path))
-    compile_payload["prompt"] = optimized_prompt
+    compile_options = compile_payload.get("compile_options")
+    if compile_options is None:
+        compile_options = {}
+    elif not isinstance(compile_options, dict):
+        raise ValueError("Compile payload compile_options must be a JSON object.")
+
+    if "num_prompt_variations" in compile_options:
+        compile_payload["prompt"] = resolved_optimized_prompts[0]
+    else:
+        compile_options["optimized_prompts"] = resolved_optimized_prompts
+        compile_payload["compile_options"] = compile_options
     compile_payload_path.write_text(json.dumps(compile_payload, indent=2), encoding="utf-8")
 
 
@@ -433,7 +443,7 @@ def _build_parser() -> argparse.ArgumentParser:
     optimize_parser.add_argument(
         "--alter-compile",
         default=None,
-        help="Path to a compile payload file whose prompt will be replaced with the optimized prompt after polling.",
+        help="Path to a compile payload file that will be updated with optimized prompt data after polling.",
     )
 
     compile_parser = subparsers.add_parser(
