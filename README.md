@@ -145,10 +145,9 @@ Run only the commands you need, in any order.
 py -m stabilizer_python_sdk health
 py -m stabilizer_python_sdk models
 py -m stabilizer_python_sdk config --api-key YOUR_STABILIZER_API_KEY --payload-file .\config-input.json
-py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\optimize-input.json --config cfg_123
 py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\optimize-input.json --config cfg_123 --poll --alter-compile .\compile-input.json
-py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile-input.json --config cfg_123
-py -m stabilizer_python_sdk extract --api-key YOUR_STABILIZER_API_KEY --payload-file .\extract-input.json --function fn_123
+py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile-input.json --config cfg_123 --poll
+py -m stabilizer_python_sdk extract --api-key YOUR_STABILIZER_API_KEY --payload-file .\extract-input.json --function fn_123 --poll
 py -m stabilizer_python_sdk poll --api-key YOUR_STABILIZER_API_KEY --job job_123 --timeout 600
 py -m stabilizer_python_sdk state latest
 ```
