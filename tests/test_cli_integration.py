@@ -26,6 +26,30 @@ def _write_json(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def _load_env_file(path: Path) -> dict[str, str]:
+    if not path.is_file():
+        return {}
+
+    loaded: dict[str, str] = {}
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        normalized_key = key.strip()
+        if not normalized_key:
+            continue
+        normalized_value = value.strip()
+        if (
+            len(normalized_value) >= 2
+            and normalized_value[0] == normalized_value[-1]
+            and normalized_value[0] in {"'", '"'}
+        ):
+            normalized_value = normalized_value[1:-1]
+        loaded[normalized_key] = normalized_value
+    return loaded
+
+
 def _parse_cli_json_output(output: str) -> object:
     stripped = output.strip()
     if not stripped:
@@ -73,8 +97,22 @@ def _payload_identifier_details(payload: object) -> str | None:
     return " ".join(f"{key}={value}" for key, value in ordered_identifiers)
 
 
+def _format_cli_command(args: list[str]) -> str:
+    redacted_args: list[str] = []
+    redact_next = False
+    for arg in args:
+        if redact_next:
+            redacted_args.append("REDACTED")
+            redact_next = False
+            continue
+        redacted_args.append(arg)
+        if arg == "--api-key":
+            redact_next = True
+    return " ".join(["py", "-m", "stabilizer_python_sdk", *redacted_args])
+
+
 def _write_sequence_progress(
-    command_name: str,
+    command_line: str,
     *,
     status: str,
     payload: object | None = None,
@@ -88,7 +126,7 @@ def _write_sequence_progress(
     details = _payload_identifier_details(payload)
     message = (
         "\x1b[36m[integration]\x1b[0m "
-        f"\x1b[33m{command_name}\x1b[0m "
+        f"\x1b[33m{command_line}\x1b[0m "
         f"{status_color}{status}\x1b[0m"
     )
     if details:
@@ -129,17 +167,36 @@ def _extract_optimized_prompt(payload: object) -> str:
 
 
 def _require_live_cli_env(*, require_provider_api_key: bool) -> dict[str, str]:
-    if os.getenv(INTEGRATION_ENABLE_ENV) != "1":
+    return _resolve_live_cli_env(
+        require_provider_api_key=require_provider_api_key,
+        dotenv_path=REPO_ROOT / ".env.local",
+    )
+
+
+def _resolve_live_cli_env(
+    *,
+    require_provider_api_key: bool,
+    dotenv_path: Path,
+) -> dict[str, str]:
+    dotenv_values = _load_env_file(dotenv_path)
+    integration_enabled = os.getenv(INTEGRATION_ENABLE_ENV, dotenv_values.get(INTEGRATION_ENABLE_ENV))
+    if integration_enabled != "1":
         pytest.skip(f"Set {INTEGRATION_ENABLE_ENV}=1 to enable live CLI integration tests.")
 
-    api_key = os.getenv(API_KEY_ENV)
+    api_key = os.getenv(API_KEY_ENV, dotenv_values.get(API_KEY_ENV))
     if not api_key:
         pytest.skip(f"Set {API_KEY_ENV} to enable live CLI integration tests.")
 
-    if require_provider_api_key and not os.getenv(PROVIDER_API_KEY_ENV):
+    provider_api_key = os.getenv(PROVIDER_API_KEY_ENV, dotenv_values.get(PROVIDER_API_KEY_ENV))
+    if require_provider_api_key and not provider_api_key:
         pytest.skip(f"Set {PROVIDER_API_KEY_ENV} to enable live config/create integration tests.")
 
-    env = os.environ.copy()
+    env = dict(dotenv_values)
+    env.update(os.environ)
+    env[INTEGRATION_ENABLE_ENV] = integration_enabled
+    env[API_KEY_ENV] = api_key
+    if provider_api_key:
+        env[PROVIDER_API_KEY_ENV] = provider_api_key
     existing_pythonpath = env.get("PYTHONPATH")
     env["PYTHONPATH"] = str(SRC_DIR) if not existing_pythonpath else os.pathsep.join([str(SRC_DIR), existing_pythonpath])
     return env
@@ -153,7 +210,7 @@ def _run_cli_command(
     timeout: float = 900.0,
 ) -> tuple[int, object, str, str]:
     completed = subprocess.run(
-        [sys.executable, "-m", "stabilizer_python_sdk", *args],
+        ["py", "-m", "stabilizer_python_sdk", *args],
         cwd=cwd,
         env=env,
         capture_output=True,
@@ -169,9 +226,9 @@ def _run_cli_command(
 def test_write_sequence_progress_uses_ansi_colors() -> None:
     stream = io.StringIO()
 
-    _write_sequence_progress("health", status="running", stream=stream)
+    _write_sequence_progress("py -m stabilizer_python_sdk health", status="running", stream=stream)
     _write_sequence_progress(
-        "health",
+        "py -m stabilizer_python_sdk health",
         status="passed",
         payload={"org_id": "org_123", "job_id": "job_456"},
         stream=stream,
@@ -179,13 +236,44 @@ def test_write_sequence_progress_uses_ansi_colors() -> None:
 
     assert stream.getvalue() == (
         "\x1b[36m[integration]\x1b[0m "
-        "\x1b[33mhealth\x1b[0m "
+        "\x1b[33mpy -m stabilizer_python_sdk health\x1b[0m "
         "\x1b[34mrunning\x1b[0m\n"
         "\x1b[36m[integration]\x1b[0m "
-        "\x1b[33mhealth\x1b[0m "
+        "\x1b[33mpy -m stabilizer_python_sdk health\x1b[0m "
         "\x1b[32mpassed\x1b[0m "
         "\x1b[35morg_id=org_123 job_id=job_456\x1b[0m\n"
     )
+
+
+def test_format_cli_command_redacts_api_key_values() -> None:
+    assert _format_cli_command(
+        ["org", "--api-key", "sk-secret-value", "--config", "cfg_123"]
+    ) == "py -m stabilizer_python_sdk org --api-key REDACTED --config cfg_123"
+
+
+def test_require_live_cli_env_loads_repo_dotenv_when_shell_env_is_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dotenv_path = tmp_path / ".env.local"
+    dotenv_path.write_text(
+        "STABILIZER_RUN_INTEGRATION=1\n"
+        "STABILIZER_API_KEY=sk_from_file\n"
+        "STABILIZER_PROVIDER_API_KEY=provider_from_file\n",
+        encoding="utf-8",
+    )
+    monkeypatch.delenv(INTEGRATION_ENABLE_ENV, raising=False)
+    monkeypatch.delenv(API_KEY_ENV, raising=False)
+    monkeypatch.delenv(PROVIDER_API_KEY_ENV, raising=False)
+
+    env = _resolve_live_cli_env(
+        require_provider_api_key=True,
+        dotenv_path=dotenv_path,
+    )
+
+    assert env[INTEGRATION_ENABLE_ENV] == "1"
+    assert env[API_KEY_ENV] == "sk_from_file"
+    assert env[PROVIDER_API_KEY_ENV] == "provider_from_file"
 
 
 @pytest.mark.integration
@@ -223,24 +311,55 @@ def test_live_cli_sequence_round_trips_to_server(
     created_api_key_id: str | None = None
     created_config_id: str | None = None
     compiled_function_id: str | None = None
+    training_examples = [
+        {
+            "source_text": "Invoice INV-10 is due on 2026-05-01 and totals $125.",
+            "extracted_json": {"invoice_total": 125, "due_date": "2026-05-01"},
+        },
+        {
+            "source_text": "Invoice INV-11 is due on 2026-05-14 and totals $214.",
+            "extracted_json": {"invoice_total": 214, "due_date": "2026-05-14"},
+        },
+        {
+            "source_text": "Invoice INV-12 is due on 2026-05-20 and totals $99.",
+            "extracted_json": {"invoice_total": 99, "due_date": "2026-05-20"},
+        },
+        {
+            "source_text": "Invoice INV-13 is due on 2026-06-01 and totals $431.",
+            "extracted_json": {"invoice_total": 431, "due_date": "2026-06-01"},
+        },
+        {
+            "source_text": "Invoice INV-14 is due on 2026-06-10 and totals $287.",
+            "extracted_json": {"invoice_total": 287, "due_date": "2026-06-10"},
+        },
+    ]
 
     def run_command(args: list[str]) -> object:
-        command_name = args[0]
+        command_line = _format_cli_command(args)
         with capsys.disabled():
-            _write_sequence_progress(command_name, status="running", stream=sys.stderr)
+            _write_sequence_progress(command_line, status="running", stream=sys.stderr)
         exit_code, payload, stdout, stderr = _run_cli_command(args, cwd=tmp_path, env=env)
         with capsys.disabled():
             _write_sequence_progress(
-                command_name,
+                command_line,
                 status="passed" if exit_code == 0 else "failed",
                 payload=payload,
                 stream=sys.stderr,
             )
-        assert exit_code == 0, f"{command_name} failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+        assert exit_code == 0, f"{command_line} failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
         return payload
 
     try:
-        org_result = run_command(["org", "--api-key", api_key])
+        health_result = run_command(["health"])
+        assert isinstance(health_result, dict)
+        assert str(health_result.get("status", "")).lower() in {"ok", "healthy"}
+
+        models_result = run_command(["models"])
+        assert isinstance(models_result, dict)
+        assert isinstance(models_result.get("models"), list)
+        assert models_result["models"]
+
+        org_result = run_command(["org"])
         assert isinstance(org_result, dict)
         assert isinstance(org_result.get("org_id"), str)
 
@@ -248,27 +367,23 @@ def test_live_cli_sequence_round_trips_to_server(
         assert isinstance(org_name, str)
         _write_json(tmp_path / "org-update.json", {"name": org_name})
 
-        api_keys_result = run_command(["api-keys", "--api-key", api_key])
+        api_keys_result = run_command(["api-keys"])
         assert isinstance(api_keys_result, list)
 
         _write_json(
             tmp_path / "api-key-create.json",
             {"name": f"CLI integration key {unique_suffix}", "scope": "read_only"},
         )
-        api_key_create_result = run_command(
-            ["api-key-create", "--api-key", api_key, "--payload-file", ".\\api-key-create.json"]
-        )
+        api_key_create_result = run_command(["api-key-create", "--payload-file", ".\\api-key-create.json"])
         assert isinstance(api_key_create_result, dict)
         created_api_key_id = str(api_key_create_result["key_id"])
         assert created_api_key_id
 
-        org_update_result = run_command(
-            ["org-update", "--api-key", api_key, "--payload-file", ".\\org-update.json"]
-        )
+        org_update_result = run_command(["org-update", "--payload-file", ".\\org-update.json"])
         assert isinstance(org_update_result, dict)
         assert str(org_update_result.get("org_id")) == str(org_result["org_id"])
 
-        configs_result = run_command(["configs", "--api-key", api_key])
+        configs_result = run_command(["configs"])
         assert isinstance(configs_result, list)
 
         _write_json(
@@ -281,7 +396,7 @@ def test_live_cli_sequence_round_trips_to_server(
                 "byok": True,
             },
         )
-        config_result = run_command(["config", "--api-key", api_key, "--payload-file", ".\\config-input.json"])
+        config_result = run_command(["config", "--payload-file", ".\\config-input.json"])
         assert isinstance(config_result, dict)
         created_config_id = str(config_result["config_id"])
         assert created_config_id
@@ -290,8 +405,6 @@ def test_live_cli_sequence_round_trips_to_server(
         config_update_result = run_command(
             [
                 "config-update",
-                "--api-key",
-                api_key,
                 "--config",
                 created_config_id,
                 "--payload-file",
@@ -309,12 +422,7 @@ def test_live_cli_sequence_round_trips_to_server(
                     "invoice_total": "number",
                     "due_date": "string",
                 },
-                "training_data": [
-                    {
-                        "source_text": "Invoice INV-10 is due on 2026-05-01 and totals $125.",
-                        "extracted_json": {"invoice_total": 125, "due_date": "2026-05-01"},
-                    }
-                ],
+                "training_data": training_examples,
             },
         )
         _write_json(
@@ -328,12 +436,7 @@ def test_live_cli_sequence_round_trips_to_server(
                     "invoice_total": "number",
                     "due_date": "string",
                 },
-                "training_data": [
-                    {
-                        "source_text": "Invoice INV-10 is due on 2026-05-01 and totals $125.",
-                        "extracted_json": {"invoice_total": 125, "due_date": "2026-05-01"},
-                    }
-                ],
+                "training_data": training_examples,
                 "compile_options": {
                     "num_prompt_variations": 3,
                 },
@@ -343,8 +446,6 @@ def test_live_cli_sequence_round_trips_to_server(
         optimize_result = run_command(
             [
                 "optimize",
-                "--api-key",
-                api_key,
                 "--payload-file",
                 ".\\optimize-input.json",
                 "--config",
@@ -364,8 +465,6 @@ def test_live_cli_sequence_round_trips_to_server(
         compile_result = run_command(
             [
                 "compile",
-                "--api-key",
-                api_key,
                 "--payload-file",
                 ".\\compile-input.json",
                 "--config",
@@ -378,12 +477,10 @@ def test_live_cli_sequence_round_trips_to_server(
         compile_job_id = str(compile_result["job_id"])
         compiled_function_id = _extract_function_id(compile_result)
 
-        functions_result = run_command(
-            ["functions", "--api-key", api_key, "--name", compile_name, "--tag", function_tag]
-        )
+        functions_result = run_command(["functions", "--name", compile_name, "--tag", function_tag])
         assert isinstance(functions_result, list)
 
-        function_result = run_command(["function", "--api-key", api_key, "--function", compiled_function_id])
+        function_result = run_command(["function", "--function", compiled_function_id])
         assert isinstance(function_result, dict)
         assert str(function_result.get("function_id")) == compiled_function_id
 
@@ -391,8 +488,6 @@ def test_live_cli_sequence_round_trips_to_server(
         function_update_result = run_command(
             [
                 "function-update",
-                "--api-key",
-                api_key,
                 "--function",
                 compiled_function_id,
                 "--payload-file",
@@ -413,8 +508,6 @@ def test_live_cli_sequence_round_trips_to_server(
         extract_result = run_command(
             [
                 "extract",
-                "--api-key",
-                api_key,
                 "--payload-file",
                 ".\\extract-input.json",
                 "--function",
@@ -426,14 +519,14 @@ def test_live_cli_sequence_round_trips_to_server(
         assert str(extract_result.get("status", "")).lower() == "completed"
         extract_job_id = str(extract_result["job_id"])
 
-        extractions_result = run_command(["extractions", "--api-key", api_key])
+        extractions_result = run_command(["extractions"])
         assert isinstance(extractions_result, list)
 
-        job_result = run_command(["job", "--api-key", api_key, "--job", extract_job_id])
+        job_result = run_command(["job", "--job", extract_job_id])
         assert isinstance(job_result, dict)
         assert str(job_result.get("job_id")) == extract_job_id
 
-        poll_result = run_command(["poll", "--api-key", api_key, "--job", extract_job_id, "--timeout", "600"])
+        poll_result = run_command(["poll", "--job", extract_job_id, "--timeout", "600"])
         assert isinstance(poll_result, dict)
         assert str(poll_result.get("job_id")) == extract_job_id
         assert str(poll_result.get("status", "")).lower() == "completed"
@@ -441,8 +534,6 @@ def test_live_cli_sequence_round_trips_to_server(
         usage_result = run_command(
             [
                 "usage",
-                "--api-key",
-                api_key,
                 "--from",
                 usage_from.isoformat(),
                 "--to",
@@ -462,17 +553,15 @@ def test_live_cli_sequence_round_trips_to_server(
             "extract_job_id": extract_job_id,
         }
 
-        revoke_result = run_command(["api-key-revoke", "--api-key", api_key, "--key", created_api_key_id])
+        revoke_result = run_command(["api-key-revoke", "--key", created_api_key_id])
         assert revoke_result is None
         created_api_key_id = None
 
-        function_delete_result = run_command(
-            ["function-delete", "--api-key", api_key, "--function", compiled_function_id]
-        )
+        function_delete_result = run_command(["function-delete", "--function", compiled_function_id])
         assert function_delete_result is None
         compiled_function_id = None
 
-        config_delete_result = run_command(["config-delete", "--api-key", api_key, "--config", created_config_id])
+        config_delete_result = run_command(["config-delete", "--config", created_config_id])
         assert config_delete_result is None
         created_config_id = None
     finally:
