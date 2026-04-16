@@ -66,6 +66,9 @@ def _parse_cli_json_output(output: str) -> object:
 
 
 def _payload_identifier_details(payload: object) -> str | None:
+    if isinstance(payload, list):
+        return f"count={len(payload)}"
+
     ordered_identifiers: list[tuple[str, str]] = []
     seen_pairs: set[tuple[str, str]] = set()
 
@@ -86,11 +89,6 @@ def _payload_identifier_details(payload: object) -> str | None:
                 nested = candidate.get(key)
                 if isinstance(nested, (dict, list)):
                     visit(nested)
-        elif isinstance(candidate, list):
-            for item in candidate:
-                if isinstance(item, (dict, list)):
-                    visit(item)
-
     visit(payload)
     if not ordered_identifiers:
         return None
@@ -242,6 +240,24 @@ def test_write_sequence_progress_uses_ansi_colors() -> None:
         "\x1b[33mpy -m stabilizer_python_sdk health\x1b[0m "
         "\x1b[32mpassed\x1b[0m "
         "\x1b[35morg_id=org_123 job_id=job_456\x1b[0m\n"
+    )
+
+
+def test_write_sequence_progress_prints_list_count_not_items() -> None:
+    stream = io.StringIO()
+
+    _write_sequence_progress(
+        "py -m stabilizer_python_sdk configs",
+        status="passed",
+        payload=[{"config_id": "cfg_123"}, {"config_id": "cfg_456"}],
+        stream=stream,
+    )
+
+    assert stream.getvalue() == (
+        "\x1b[36m[integration]\x1b[0m "
+        "\x1b[33mpy -m stabilizer_python_sdk configs\x1b[0m "
+        "\x1b[32mpassed\x1b[0m "
+        "\x1b[35mcount=2\x1b[0m\n"
     )
 
 
