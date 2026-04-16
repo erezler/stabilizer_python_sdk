@@ -41,17 +41,59 @@ def _parse_cli_json_output(output: str) -> object:
     return json.loads(output)
 
 
-def _write_sequence_progress(command_name: str, *, status: str, stream: io.TextIOBase) -> None:
+def _payload_identifier_details(payload: object) -> str | None:
+    ordered_identifiers: list[tuple[str, str]] = []
+    seen_pairs: set[tuple[str, str]] = set()
+
+    def record(key: str, value: object) -> None:
+        normalized = str(value)
+        pair = (key, normalized)
+        if pair in seen_pairs:
+            return
+        seen_pairs.add(pair)
+        ordered_identifiers.append(pair)
+
+    def visit(candidate: object) -> None:
+        if isinstance(candidate, dict):
+            for key, value in candidate.items():
+                if key.endswith("_id") and value not in (None, ""):
+                    record(key, value)
+            for key in ("result", "data"):
+                nested = candidate.get(key)
+                if isinstance(nested, (dict, list)):
+                    visit(nested)
+        elif isinstance(candidate, list):
+            for item in candidate:
+                if isinstance(item, (dict, list)):
+                    visit(item)
+
+    visit(payload)
+    if not ordered_identifiers:
+        return None
+    return " ".join(f"{key}={value}" for key, value in ordered_identifiers)
+
+
+def _write_sequence_progress(
+    command_name: str,
+    *,
+    status: str,
+    payload: object | None = None,
+    stream: io.TextIOBase,
+) -> None:
     status_color = {
         "running": "\x1b[34m",
         "passed": "\x1b[32m",
         "failed": "\x1b[31m",
     }.get(status, "\x1b[37m")
-    stream.write(
+    details = _payload_identifier_details(payload)
+    message = (
         "\x1b[36m[integration]\x1b[0m "
         f"\x1b[33m{command_name}\x1b[0m "
-        f"{status_color}{status}\x1b[0m\n"
+        f"{status_color}{status}\x1b[0m"
     )
+    if details:
+        message += f" \x1b[35m{details}\x1b[0m"
+    stream.write(f"{message}\n")
     stream.flush()
 
 
@@ -128,7 +170,12 @@ def test_write_sequence_progress_uses_ansi_colors() -> None:
     stream = io.StringIO()
 
     _write_sequence_progress("health", status="running", stream=stream)
-    _write_sequence_progress("health", status="passed", stream=stream)
+    _write_sequence_progress(
+        "health",
+        status="passed",
+        payload={"org_id": "org_123", "job_id": "job_456"},
+        stream=stream,
+    )
 
     assert stream.getvalue() == (
         "\x1b[36m[integration]\x1b[0m "
@@ -136,7 +183,8 @@ def test_write_sequence_progress_uses_ansi_colors() -> None:
         "\x1b[34mrunning\x1b[0m\n"
         "\x1b[36m[integration]\x1b[0m "
         "\x1b[33mhealth\x1b[0m "
-        "\x1b[32mpassed\x1b[0m\n"
+        "\x1b[32mpassed\x1b[0m "
+        "\x1b[35morg_id=org_123 job_id=job_456\x1b[0m\n"
     )
 
 
@@ -185,6 +233,7 @@ def test_live_cli_sequence_round_trips_to_server(
             _write_sequence_progress(
                 command_name,
                 status="passed" if exit_code == 0 else "failed",
+                payload=payload,
                 stream=sys.stderr,
             )
         assert exit_code == 0, f"{command_name} failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
