@@ -81,12 +81,5 @@
     "coherence_overview",
     "stress_test"
   ],
-  "compile_options": {
-    "num_prompt_variations": 3,
-    "optimized_prompts": [
-      "Please extract the following information from the provided text into a JSON object, adhering strictly to the specified schema and rules:\n\n- `event_title`: Capture the exact title of the event as it appears in the text.\n- `start_date`: Convert the event's date into ISO 8601 format (`YYYY-MM-DD`).\n- `ticket_price_usd`: Extract only the numeric value of the ticket price, excluding any currency symbols.\n- `audience_rating`: Assign one of the following values based on the event's description: `general`, `teen`, or `adult`.\n- `has_live_music`: Indicate whether live music is featured, using a boolean value (`true` or `false`).\n- `sponsor_name`: Extract the exact name of the sponsor if explicitly mentioned; otherwise, return `null`.\n\nImportant considerations:\n- Do not infer or invent any information that is not present in the source text.\n- Ensure the output is a valid JSON object that conforms precisely to the provided structure.",
-      "Convert the provided text into a JSON object, extracting event details according to these guidelines:\n- `event_title`: The exact title as written.\n- `start_date`: The date formatted as `YYYY-MM-DD`.\n- `ticket_price_usd`: The numerical price without currency symbols.\n- `audience_rating`: Must be one of `general`, `teen`, or `adult`.\n- `has_live_music`: A boolean (`true` or `false`).\n- `sponsor_name`: The exact sponsor name if stated, otherwise `null`.\nDo not add information not present in the text. The output must be valid JSON matching the schema.",
-      "Extract the core details of the event into a JSON structure. Use the following field specifications:\n- `event_title`: The exact title found in the source.\n- `start_date`: The date converted to `YYYY-MM-DD` format.\n- `ticket_price_usd`: The price as a number, without currency symbols.\n- `audience_rating`: Categorize as `general`, `teen`, or `adult` based on the description.\n- `has_live_music`: A boolean value, `true` if live music is present, `false` otherwise.\n- `sponsor_name`: The sponsor's name if explicitly mentioned, otherwise `null`.\nAdhere strictly to these rules and ensure the output is valid JSON. Do not create information that is not present."
-    ]
-  }
+  "compile_options": {}
 }
