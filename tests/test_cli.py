@@ -24,9 +24,62 @@ class FakeClient:
         self.calls.append(("supported_models", None))
         return {"models": ["google/gemini-2.5-flash-lite"]}
 
+    def get_org(self) -> dict[str, object]:
+        self.calls.append(("get_org", None))
+        return {"org_id": "org_123", "name": "Acme"}
+
+    def update_org(self, payload: dict[str, object]) -> dict[str, object]:
+        self.calls.append(("update_org", payload))
+        return {"org_id": "org_123", **payload}
+
+    def list_api_keys(self) -> list[dict[str, object]]:
+        self.calls.append(("list_api_keys", None))
+        return [{"key_id": "key_123", "name": "Primary", "scope": "full", "revoked": False}]
+
+    def create_api_key(self, payload: dict[str, object]) -> dict[str, object]:
+        self.calls.append(("create_api_key", payload))
+        return {
+            "key_id": "key_456",
+            "name": str(payload.get("name", "New key")),
+            "scope": str(payload.get("scope", "full")),
+            "key_value": "sk_live_123",
+        }
+
+    def revoke_api_key(self, key_id: str) -> None:
+        self.calls.append(("revoke_api_key", {"key_id": key_id}))
+        return None
+
+    def list_llm_configs(self) -> list[dict[str, object]]:
+        self.calls.append(("list_llm_configs", None))
+        return [{"config_id": "cfg_123", "name": "Primary config"}]
+
     def create_llm_config(self, payload: dict[str, object]) -> dict[str, object]:
         self.calls.append(("create_llm_config", payload))
         return {"config_id": "cfg_123", "status": "created"}
+
+    def update_llm_config(self, config_id: str, payload: dict[str, object]) -> dict[str, object]:
+        self.calls.append(("update_llm_config", {"config_id": config_id, "payload": payload}))
+        return {"config_id": config_id, **payload}
+
+    def delete_llm_config(self, config_id: str) -> None:
+        self.calls.append(("delete_llm_config", {"config_id": config_id}))
+        return None
+
+    def list_functions(self, *, name: str | None = None, tag: str | None = None) -> list[dict[str, object]]:
+        self.calls.append(("list_functions", {"name": name, "tag": tag}))
+        return [{"function_id": "fn_123", "name": name or "Invoice extractor", "tags": [tag] if tag else []}]
+
+    def get_function(self, function_id: str) -> dict[str, object]:
+        self.calls.append(("get_function", {"function_id": function_id}))
+        return {"function_id": function_id, "name": "Invoice extractor"}
+
+    def update_function(self, function_id: str, payload: dict[str, object]) -> dict[str, object]:
+        self.calls.append(("update_function", {"function_id": function_id, "payload": payload}))
+        return {"function_id": function_id, **payload}
+
+    def delete_function(self, function_id: str) -> None:
+        self.calls.append(("delete_function", {"function_id": function_id}))
+        return None
 
     def compile_function(self, payload: dict[str, object]) -> dict[str, object]:
         self.calls.append(("compile_function", payload))
@@ -40,6 +93,10 @@ class FakeClient:
         self.calls.append(("extract", payload))
         return {"job_id": "job_extract", "status": "queued"}
 
+    def list_extractions(self) -> list[dict[str, object]]:
+        self.calls.append(("list_extractions", None))
+        return [{"job_id": "job_extract", "type": "extract", "status": "completed"}]
+
     def set_job_sequence(self, job_id: str, jobs: list[dict[str, object]]) -> None:
         self._jobs[job_id] = list(jobs)
 
@@ -49,6 +106,18 @@ class FakeClient:
         if len(sequence) > 1:
             return sequence.pop(0)
         return sequence[0]
+
+    def get_usage(self, *, from_: str | None = None, to: str | None = None) -> dict[str, object]:
+        self.calls.append(("get_usage", {"from": from_, "to": to}))
+        return {"org_id": "org_123", "from": from_, "to": to, "total_jobs": 7}
+
+    def evaluate_variance(self, payload: dict[str, object]) -> dict[str, object]:
+        self.calls.append(("evaluate_variance", payload))
+        return {"score": 0.91}
+
+    def evaluate_ground_truth(self, payload: dict[str, object]) -> dict[str, object]:
+        self.calls.append(("evaluate_ground_truth", payload))
+        return {"score": 0.98}
 
 
 def test_main_without_args_prints_help(capsys: pytest.CaptureFixture[str]) -> None:
@@ -63,6 +132,12 @@ def test_main_without_args_prints_help(capsys: pytest.CaptureFixture[str]) -> No
     assert "config" in captured.out
     assert "compile" in captured.out
     assert "extract" in captured.out
+    assert "org" in captured.out
+    assert "api-keys" in captured.out
+    assert "configs" in captured.out
+    assert "functions" in captured.out
+    assert "usage" in captured.out
+    assert "evaluate-variance" in captured.out
     assert "wait" not in captured.out
 
 
@@ -144,6 +219,313 @@ def test_models_command_prints_json(
     assert exit_code == 0
     assert json.loads(captured.out) == {"models": ["google/gemini-2.5-flash-lite"]}
     assert fake_client.calls == [("supported_models", None)]
+
+
+def test_org_command_prints_json(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["org", "--api-key", "sk_test"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"org_id": "org_123", "name": "Acme"}
+    assert fake_client.calls == [("get_org", None)]
+
+
+def test_org_update_command_loads_payload_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload_path = tmp_path / "org-update.json"
+    _write_json(payload_path, {"name": "Renamed org"})
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["org-update", "--api-key", "sk_test", "--payload-file", str(payload_path)])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"org_id": "org_123", "name": "Renamed org"}
+    assert fake_client.calls == [("update_org", {"name": "Renamed org"})]
+
+
+def test_api_keys_command_prints_json(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["api-keys", "--api-key", "sk_test"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == [{"key_id": "key_123", "name": "Primary", "scope": "full", "revoked": False}]
+    assert fake_client.calls == [("list_api_keys", None)]
+
+
+def test_api_key_create_command_loads_payload_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload_path = tmp_path / "api-key-create.json"
+    _write_json(payload_path, {"name": "CLI key", "scope": "read_only"})
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["api-key-create", "--api-key", "sk_test", "--payload-file", str(payload_path)])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {
+        "key_id": "key_456",
+        "name": "CLI key",
+        "scope": "read_only",
+        "key_value": "sk_live_123",
+    }
+    assert fake_client.calls == [("create_api_key", {"name": "CLI key", "scope": "read_only"})]
+
+
+def test_api_key_revoke_command_calls_client(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["api-key-revoke", "--api-key", "sk_test", "--key", "key_123"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) is None
+    assert fake_client.calls == [("revoke_api_key", {"key_id": "key_123"})]
+
+
+def test_configs_command_prints_json(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["configs", "--api-key", "sk_test"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == [{"config_id": "cfg_123", "name": "Primary config"}]
+    assert fake_client.calls == [("list_llm_configs", None)]
+
+
+def test_config_update_command_loads_payload_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload_path = tmp_path / "config-update.json"
+    _write_json(payload_path, {"name": "Renamed config"})
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(
+        ["config-update", "--api-key", "sk_test", "--config", "cfg_123", "--payload-file", str(payload_path)]
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"config_id": "cfg_123", "name": "Renamed config"}
+    assert fake_client.calls == [("update_llm_config", {"config_id": "cfg_123", "payload": {"name": "Renamed config"}})]
+
+
+def test_config_delete_command_calls_client(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["config-delete", "--api-key", "sk_test", "--config", "cfg_123"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) is None
+    assert fake_client.calls == [("delete_llm_config", {"config_id": "cfg_123"})]
+
+
+def test_functions_command_forwards_filters(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["functions", "--api-key", "sk_test", "--name", "Invoice", "--tag", "billing"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == [{"function_id": "fn_123", "name": "Invoice", "tags": ["billing"]}]
+    assert fake_client.calls == [("list_functions", {"name": "Invoice", "tag": "billing"})]
+
+
+def test_function_command_prints_json(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["function", "--api-key", "sk_test", "--function", "fn_123"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"function_id": "fn_123", "name": "Invoice extractor"}
+    assert fake_client.calls == [("get_function", {"function_id": "fn_123"})]
+
+
+def test_function_update_command_loads_payload_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload_path = tmp_path / "function-update.json"
+    _write_json(payload_path, {"name": "Renamed function"})
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(
+        ["function-update", "--api-key", "sk_test", "--function", "fn_123", "--payload-file", str(payload_path)]
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"function_id": "fn_123", "name": "Renamed function"}
+    assert fake_client.calls == [
+        ("update_function", {"function_id": "fn_123", "payload": {"name": "Renamed function"}})
+    ]
+
+
+def test_function_delete_command_calls_client(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["function-delete", "--api-key", "sk_test", "--function", "fn_123"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) is None
+    assert fake_client.calls == [("delete_function", {"function_id": "fn_123"})]
+
+
+def test_job_command_fetches_status_without_polling(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient()
+    fake_client.set_job_sequence("job_123", [{"job_id": "job_123", "status": "running", "progress": 40}])
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["job", "--api-key", "sk_test", "--job", "job_123"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"job_id": "job_123", "status": "running", "progress": 40}
+    assert fake_client.calls == [("get_job", {"job_id": "job_123"})]
+
+
+def test_extractions_command_prints_json(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["extractions", "--api-key", "sk_test"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == [{"job_id": "job_extract", "type": "extract", "status": "completed"}]
+    assert fake_client.calls == [("list_extractions", None)]
+
+
+def test_usage_command_forwards_query_arguments(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["usage", "--api-key", "sk_test", "--from", "2026-04-01", "--to", "2026-04-15"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {
+        "org_id": "org_123",
+        "from": "2026-04-01",
+        "to": "2026-04-15",
+        "total_jobs": 7,
+    }
+    assert fake_client.calls == [("get_usage", {"from": "2026-04-01", "to": "2026-04-15"})]
+
+
+def test_evaluate_variance_command_loads_payload_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload_path = tmp_path / "evaluate-variance.json"
+    _write_json(payload_path, {"extractions": [{"field": "a"}, {"field": "b"}, {"field": "c"}]})
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["evaluate-variance", "--api-key", "sk_test", "--payload-file", str(payload_path)])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"score": 0.91}
+    assert fake_client.calls == [("evaluate_variance", {"extractions": [{"field": "a"}, {"field": "b"}, {"field": "c"}]})]
+
+
+def test_evaluate_gt_command_loads_payload_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload_path = tmp_path / "evaluate-gt.json"
+    _write_json(payload_path, {"ground_truth": {"field": "a"}, "results": {"field": "a"}})
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["evaluate-gt", "--api-key", "sk_test", "--payload-file", str(payload_path)])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"score": 0.98}
+    assert fake_client.calls == [("evaluate_ground_truth", {"ground_truth": {"field": "a"}, "results": {"field": "a"}})]
 
 
 def test_config_command_requires_payload_file(

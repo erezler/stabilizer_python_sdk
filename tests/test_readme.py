@@ -24,7 +24,16 @@ def test_readme_documents_sdk_usage_paths() -> None:
     assert "py -m stabilizer_python_sdk config" in readme
     assert "py -m stabilizer_python_sdk compile" in readme
     assert "py -m stabilizer_python_sdk extract" in readme
+    assert "py -m stabilizer_python_sdk org" in readme
+    assert "py -m stabilizer_python_sdk api-keys" in readme
+    assert "py -m stabilizer_python_sdk configs" in readme
+    assert "py -m stabilizer_python_sdk functions" in readme
+    assert "py -m stabilizer_python_sdk function" in readme
+    assert "py -m stabilizer_python_sdk job" in readme
     assert "py -m stabilizer_python_sdk poll" in readme
+    assert "py -m stabilizer_python_sdk usage" in readme
+    assert "py -m stabilizer_python_sdk evaluate-variance" in readme
+    assert "py -m stabilizer_python_sdk evaluate-gt" in readme
     assert "py -m stabilizer_python_sdk state latest" in readme
     assert "temp_db\\general" in readme
     assert "config-input.json" in readme

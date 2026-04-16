@@ -404,6 +404,44 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("health", help="Run GET /v1/health.")
     subparsers.add_parser("models", help="Run GET /v1/supported-models.")
 
+    org_parser = subparsers.add_parser("org", help="Run GET /v1/org.")
+    org_parser.add_argument("--api-key", help="Stabilizer API key.")
+
+    org_update_parser = subparsers.add_parser(
+        "org-update",
+        help="Run PATCH /v1/org with a JSON payload file.",
+    )
+    org_update_parser.add_argument("--api-key", help="Stabilizer API key.")
+    org_update_parser.add_argument(
+        "--payload-file",
+        default=None,
+        help="Path to a JSON file for the org update request body.",
+    )
+
+    api_keys_parser = subparsers.add_parser("api-keys", help="Run GET /v1/api-keys.")
+    api_keys_parser.add_argument("--api-key", help="Stabilizer API key.")
+
+    api_key_create_parser = subparsers.add_parser(
+        "api-key-create",
+        help="Run POST /v1/api-keys with a JSON payload file.",
+    )
+    api_key_create_parser.add_argument("--api-key", help="Stabilizer API key.")
+    api_key_create_parser.add_argument(
+        "--payload-file",
+        default=None,
+        help="Path to a JSON file for the API key create request body.",
+    )
+
+    api_key_revoke_parser = subparsers.add_parser(
+        "api-key-revoke",
+        help="Run DELETE /v1/api-keys/{key_id}.",
+    )
+    api_key_revoke_parser.add_argument("--api-key", help="Stabilizer API key.")
+    api_key_revoke_parser.add_argument("--key", required=True, help="Existing API key ID to revoke.")
+
+    configs_parser = subparsers.add_parser("configs", help="Run GET /v1/llm-configs.")
+    configs_parser.add_argument("--api-key", help="Stabilizer API key.")
+
     config_parser = subparsers.add_parser(
         "config",
         help="Run POST /v1/llm-configs with a JSON payload file.",
@@ -414,6 +452,30 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Path to a JSON file for the config request body.",
     )
+
+    config_update_parser = subparsers.add_parser(
+        "config-update",
+        help="Run PATCH /v1/llm-configs/{config_id} with a JSON payload file.",
+    )
+    config_update_parser.add_argument("--api-key", help="Stabilizer API key.")
+    config_update_parser.add_argument("--config", required=True, help="Existing config_id to update.")
+    config_update_parser.add_argument(
+        "--payload-file",
+        default=None,
+        help="Path to a JSON file for the config update request body.",
+    )
+
+    config_delete_parser = subparsers.add_parser(
+        "config-delete",
+        help="Run DELETE /v1/llm-configs/{config_id}.",
+    )
+    config_delete_parser.add_argument("--api-key", help="Stabilizer API key.")
+    config_delete_parser.add_argument("--config", required=True, help="Existing config_id to delete.")
+
+    functions_parser = subparsers.add_parser("functions", help="Run GET /v1/functions.")
+    functions_parser.add_argument("--api-key", help="Stabilizer API key.")
+    functions_parser.add_argument("--name", default=None, help="Filter functions by name.")
+    functions_parser.add_argument("--tag", default=None, help="Filter functions by tag.")
 
     optimize_parser = subparsers.add_parser(
         "optimize",
@@ -472,6 +534,32 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Maximum seconds to wait when --poll is used.",
     )
 
+    function_parser = subparsers.add_parser(
+        "function",
+        help="Run GET /v1/functions/{function_id}.",
+    )
+    function_parser.add_argument("--api-key", help="Stabilizer API key.")
+    function_parser.add_argument("--function", required=True, help="Existing function_id to fetch.")
+
+    function_update_parser = subparsers.add_parser(
+        "function-update",
+        help="Run PATCH /v1/functions/{function_id} with a JSON payload file.",
+    )
+    function_update_parser.add_argument("--api-key", help="Stabilizer API key.")
+    function_update_parser.add_argument("--function", required=True, help="Existing function_id to update.")
+    function_update_parser.add_argument(
+        "--payload-file",
+        default=None,
+        help="Path to a JSON file for the function update request body.",
+    )
+
+    function_delete_parser = subparsers.add_parser(
+        "function-delete",
+        help="Run DELETE /v1/functions/{function_id}.",
+    )
+    function_delete_parser.add_argument("--api-key", help="Stabilizer API key.")
+    function_delete_parser.add_argument("--function", required=True, help="Existing function_id to delete.")
+
     extract_parser = subparsers.add_parser(
         "extract",
         help="Run POST /v1/extract with a JSON payload file.",
@@ -498,6 +586,19 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Maximum seconds to wait when --poll is used.",
     )
 
+    extractions_parser = subparsers.add_parser(
+        "extractions",
+        help="Run GET /v1/extractions.",
+    )
+    extractions_parser.add_argument("--api-key", help="Stabilizer API key.")
+
+    job_parser = subparsers.add_parser(
+        "job",
+        help="Run GET /v1/jobs/{job_id}.",
+    )
+    job_parser.add_argument("--api-key", help="Stabilizer API key.")
+    job_parser.add_argument("--job", required=True, help="Existing job ID to fetch.")
+
     poll_parser = subparsers.add_parser(
         "poll",
         help="Poll an existing job until completion.",
@@ -509,6 +610,36 @@ def _build_parser() -> argparse.ArgumentParser:
         type=float,
         default=600.0,
         help="Maximum seconds to wait for the job to finish.",
+    )
+
+    usage_parser = subparsers.add_parser(
+        "usage",
+        help="Run GET /v1/usage.",
+    )
+    usage_parser.add_argument("--api-key", help="Stabilizer API key.")
+    usage_parser.add_argument("--from", dest="from_", default=None, help="Lower bound usage date filter.")
+    usage_parser.add_argument("--to", default=None, help="Upper bound usage date filter.")
+
+    evaluate_variance_parser = subparsers.add_parser(
+        "evaluate-variance",
+        help="Run POST /v1/evaluate/variance with a JSON payload file.",
+    )
+    evaluate_variance_parser.add_argument("--api-key", help="Stabilizer API key.")
+    evaluate_variance_parser.add_argument(
+        "--payload-file",
+        default=None,
+        help="Path to a JSON file for the variance evaluation request body.",
+    )
+
+    evaluate_gt_parser = subparsers.add_parser(
+        "evaluate-gt",
+        help="Run POST /v1/evaluate/gt with a JSON payload file.",
+    )
+    evaluate_gt_parser.add_argument("--api-key", help="Stabilizer API key.")
+    evaluate_gt_parser.add_argument(
+        "--payload-file",
+        default=None,
+        help="Path to a JSON file for the ground truth evaluation request body.",
     )
 
     state_parser = subparsers.add_parser(
@@ -550,6 +681,43 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_json(_make_client().supported_models())
             return 0
 
+        if parsed.command == "org":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            _print_json(client.get_org())
+            return 0
+
+        if parsed.command == "org-update":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            result = client.update_org(
+                _read_payload(_require_payload_file(parsed.payload_file, command_name="org-update"))
+            )
+            _print_json(result)
+            return 0
+
+        if parsed.command == "api-keys":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            _print_json(client.list_api_keys())
+            return 0
+
+        if parsed.command == "api-key-create":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            result = client.create_api_key(
+                _read_payload(_require_payload_file(parsed.payload_file, command_name="api-key-create"))
+            )
+            _print_json(result)
+            return 0
+
+        if parsed.command == "api-key-revoke":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            result = client.revoke_api_key(parsed.key)
+            _print_json(result)
+            return 0
+
+        if parsed.command == "configs":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            _print_json(client.list_llm_configs())
+            return 0
+
         if parsed.command == "config":
             client = _make_client(api_key=_require_api_key(parsed.api_key))
             request_payload = LLMConfigRequest.from_payload(
@@ -564,6 +732,26 @@ def main(argv: Sequence[str] | None = None) -> int:
                 response=result,
             )
             _print_json(result)
+            return 0
+
+        if parsed.command == "config-update":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            result = client.update_llm_config(
+                parsed.config,
+                _read_payload(_require_payload_file(parsed.payload_file, command_name="config-update")),
+            )
+            _print_json(result)
+            return 0
+
+        if parsed.command == "config-delete":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            result = client.delete_llm_config(parsed.config)
+            _print_json(result)
+            return 0
+
+        if parsed.command == "functions":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            _print_json(client.list_functions(name=parsed.name, tag=parsed.tag))
             return 0
 
         if parsed.command == "optimize":
@@ -619,6 +807,26 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_json(result)
             return 0
 
+        if parsed.command == "function":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            _print_json(client.get_function(parsed.function))
+            return 0
+
+        if parsed.command == "function-update":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            result = client.update_function(
+                parsed.function,
+                _read_payload(_require_payload_file(parsed.payload_file, command_name="function-update")),
+            )
+            _print_json(result)
+            return 0
+
+        if parsed.command == "function-delete":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            result = client.delete_function(parsed.function)
+            _print_json(result)
+            return 0
+
         if parsed.command == "extract":
             client = _make_client(api_key=_require_api_key(parsed.api_key))
             request_payload = _load_request_payload(
@@ -642,6 +850,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_json(result)
             return 0
 
+        if parsed.command == "extractions":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            _print_json(client.list_extractions())
+            return 0
+
+        if parsed.command == "job":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            _print_json(client.get_job(parsed.job))
+            return 0
+
         if parsed.command == "poll":
             client = _make_client(api_key=_require_api_key(parsed.api_key))
             result = _poll_job_with_progress(
@@ -650,6 +868,27 @@ def main(argv: Sequence[str] | None = None) -> int:
                 timeout=parsed.timeout,
             )
             _save_polled_job_result(temp_db_dir, result)
+            _print_json(result)
+            return 0
+
+        if parsed.command == "usage":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            _print_json(client.get_usage(from_=parsed.from_, to=parsed.to))
+            return 0
+
+        if parsed.command == "evaluate-variance":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            result = client.evaluate_variance(
+                _read_payload(_require_payload_file(parsed.payload_file, command_name="evaluate-variance"))
+            )
+            _print_json(result)
+            return 0
+
+        if parsed.command == "evaluate-gt":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            result = client.evaluate_ground_truth(
+                _read_payload(_require_payload_file(parsed.payload_file, command_name="evaluate-gt"))
+            )
             _print_json(result)
             return 0
 

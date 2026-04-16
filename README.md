@@ -144,19 +144,36 @@ Run only the commands you need, in any order.
 ```powershell
 py -m stabilizer_python_sdk health
 py -m stabilizer_python_sdk models
+py -m stabilizer_python_sdk org --api-key YOUR_STABILIZER_API_KEY
+py -m stabilizer_python_sdk org-update --api-key YOUR_STABILIZER_API_KEY --payload-file .\org-update.json
+py -m stabilizer_python_sdk api-keys --api-key YOUR_STABILIZER_API_KEY
+py -m stabilizer_python_sdk api-key-create --api-key YOUR_STABILIZER_API_KEY --payload-file .\api-key-create.json
+py -m stabilizer_python_sdk api-key-revoke --api-key YOUR_STABILIZER_API_KEY --key key_123
+py -m stabilizer_python_sdk configs --api-key YOUR_STABILIZER_API_KEY
 py -m stabilizer_python_sdk config --api-key YOUR_STABILIZER_API_KEY --payload-file .\config-input.json
+py -m stabilizer_python_sdk config-update --api-key YOUR_STABILIZER_API_KEY --config cfg_123 --payload-file .\config-update.json
+py -m stabilizer_python_sdk config-delete --api-key YOUR_STABILIZER_API_KEY --config cfg_123
+py -m stabilizer_python_sdk functions --api-key YOUR_STABILIZER_API_KEY --name Invoice --tag billing
 py -m stabilizer_python_sdk optimize --api-key YOUR_STABILIZER_API_KEY --payload-file .\optimize-input.json --config cfg_123 --poll --alter-compile .\compile-input.json
 py -m stabilizer_python_sdk compile --api-key YOUR_STABILIZER_API_KEY --payload-file .\compile-input.json --config cfg_123 --poll
+py -m stabilizer_python_sdk function --api-key YOUR_STABILIZER_API_KEY --function fn_123
+py -m stabilizer_python_sdk function-update --api-key YOUR_STABILIZER_API_KEY --function fn_123 --payload-file .\function-update.json
+py -m stabilizer_python_sdk function-delete --api-key YOUR_STABILIZER_API_KEY --function fn_123
 py -m stabilizer_python_sdk extract --api-key YOUR_STABILIZER_API_KEY --payload-file .\extract-input.json --function fn_123 --poll
+py -m stabilizer_python_sdk extractions --api-key YOUR_STABILIZER_API_KEY
+py -m stabilizer_python_sdk job --api-key YOUR_STABILIZER_API_KEY --job job_123
 py -m stabilizer_python_sdk poll --api-key YOUR_STABILIZER_API_KEY --job job_123 --timeout 600
+py -m stabilizer_python_sdk usage --api-key YOUR_STABILIZER_API_KEY --from 2026-04-01 --to 2026-04-15
+py -m stabilizer_python_sdk evaluate-variance --api-key YOUR_STABILIZER_API_KEY --payload-file .\evaluate-variance.json
+py -m stabilizer_python_sdk evaluate-gt --api-key YOUR_STABILIZER_API_KEY --payload-file .\evaluate-gt.json
 py -m stabilizer_python_sdk state latest
 ```
 
 Notes:
 
-`config`, `optimize`, `compile`, `extract`, and `poll` require an API key from `--api-key`, `STABILIZER_API_KEY`, or `.env.local`.
+All authenticated schema-backed commands require an API key from `--api-key`, `STABILIZER_API_KEY`, or `.env.local`.
 
-Standalone `config`, `optimize`, `compile`, and `extract` require an explicit `--payload-file`. The only environment-backed defaults for those standalone runs are `STABILIZER_API_KEY` and `STABILIZER_PROVIDER_API_KEY`.
+Commands that create or update resources with request bodies require an explicit `--payload-file`. The only environment-backed defaults for standalone runs are `STABILIZER_API_KEY` and `STABILIZER_PROVIDER_API_KEY`.
 
 `state latest` reads the current standalone state summary from `.\temp_db\general\`, using `config-output.json`, `optimize-output.json`, `compile-output.json`, and `extract-output.json`.
 

@@ -1,0 +1,1868 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Stabilizer API",
+    "version": "v1",
+    "description": "OpenAPI source for the Stabilizer v1 API.\nThis specification covers the public routes, organization-scoped developer routes,\nextraction runtime routes, evaluation routes, and platform admin routes.\n"
+  },
+  "servers": [
+    {
+      "url": "https://stabilizerapi.documentinsight.ai/api",
+      "description": "Production"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Public"
+    },
+    {
+      "name": "Org"
+    },
+    {
+      "name": "API Keys"
+    },
+    {
+      "name": "LLM Configs"
+    },
+    {
+      "name": "Functions"
+    },
+    {
+      "name": "Runtime"
+    },
+    {
+      "name": "Evaluations"
+    },
+    {
+      "name": "Admin"
+    }
+  ],
+  "paths": {
+    "/v1/health": {
+      "get": {
+        "tags": [
+          "Public"
+        ],
+        "summary": "Health check",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Service is reachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/supported-models": {
+      "get": {
+        "tags": [
+          "Public"
+        ],
+        "summary": "List approved models",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Sorted list of approved model IDs.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportedModelsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/org": {
+      "get": {
+        "tags": [
+          "Org"
+        ],
+        "summary": "Get current organization",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Org"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Org"
+        ],
+        "summary": "Update current organization",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrgPatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Org"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/v1/api-keys": {
+      "get": {
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "List API keys",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API keys for the current organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ApiKeySummary"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "Create API key",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiKeyCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Newly created key. The raw key value is returned once.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/v1/api-keys/{key_id}": {
+      "delete": {
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "Revoke API key",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/KeyId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Key revoked."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/v1/llm-configs": {
+      "get": {
+        "tags": [
+          "LLM Configs"
+        ],
+        "summary": "List LLM configs",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "LLM configs for the current org.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LlmConfig"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "LLM Configs"
+        ],
+        "summary": "Create LLM config",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LlmConfigCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "LLM config created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmConfig"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/v1/llm-configs/{config_id}": {
+      "patch": {
+        "tags": [
+          "LLM Configs"
+        ],
+        "summary": "Update LLM config",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ConfigId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LlmConfigPatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated LLM config.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmConfig"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "LLM Configs"
+        ],
+        "summary": "Delete LLM config",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ConfigId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Config deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/v1/functions": {
+      "get": {
+        "tags": [
+          "Functions"
+        ],
+        "summary": "List compiled functions",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tag",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Saved functions.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FunctionSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Functions"
+        ],
+        "summary": "Compile a function",
+        "description": "Creates an asynchronous compile job.\nReturns `202 Accepted` with a job ID.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompileFunctionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Compile job accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/QuotaExhausted"
+          }
+        }
+      }
+    },
+    "/v1/functions/{function_id}": {
+      "get": {
+        "tags": [
+          "Functions"
+        ],
+        "summary": "Get function metadata",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FunctionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Function metadata without internal compiled prompts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Functions"
+        ],
+        "summary": "Update function metadata",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FunctionId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FunctionPatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated function metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Functions"
+        ],
+        "summary": "Delete function",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FunctionId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Function deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/v1/prompt-optimizations": {
+      "post": {
+        "tags": [
+          "Functions"
+        ],
+        "summary": "Optimize prompt candidates",
+        "description": "Creates an asynchronous prompt optimization job.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptOptimizationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Optimization job accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/QuotaExhausted"
+          }
+        }
+      }
+    },
+    "/v1/extract": {
+      "post": {
+        "tags": [
+          "Runtime"
+        ],
+        "summary": "Run extraction",
+        "description": "Creates an asynchronous extraction job.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtractRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Extraction job accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/QuotaExhausted"
+          }
+        }
+      }
+    },
+    "/v1/extractions": {
+      "get": {
+        "tags": [
+          "Runtime"
+        ],
+        "summary": "List extraction jobs",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Extraction job history.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JobResource"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "Runtime"
+        ],
+        "summary": "Get job status",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job record.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/v1/usage": {
+      "get": {
+        "tags": [
+          "Runtime"
+        ],
+        "summary": "Get usage summary",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Lower bound for lexical created_at filtering."
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Upper bound for lexical created_at filtering."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage counters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/evaluate/variance": {
+      "post": {
+        "tags": [
+          "Evaluations"
+        ],
+        "summary": "Evaluate variance across extraction candidates",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluateVarianceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Variance evaluation result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/v1/evaluate/gt": {
+      "post": {
+        "tags": [
+          "Evaluations"
+        ],
+        "summary": "Evaluate results against ground truth",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluateGtRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ground-truth comparison result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/v1/admin/api-keys/{key_id}": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Emergency revoke API key",
+        "security": [
+          {
+            "adminApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/KeyId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Key revoked."
+          },
+          "403": {
+            "$ref": "#/components/responses/AdminForbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/v1/admin/orgs": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "List organizations",
+        "security": [
+          {
+            "adminApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "All organizations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOrgListResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AdminForbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Create organization",
+        "security": [
+          {
+            "adminApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminOrgCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Organization plus bootstrap API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOrgCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/AdminForbidden"
+          }
+        }
+      }
+    },
+    "/v1/admin/orgs/{org_id}": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Get organization by ID",
+        "security": [
+          {
+            "adminApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrgId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organization payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOrgResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AdminForbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Update organization by ID",
+        "security": [
+          {
+            "adminApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrgId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminOrgPatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOrgResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/AdminForbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Delete organization by ID",
+        "security": [
+          {
+            "adminApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrgId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Organization deleted."
+          },
+          "403": {
+            "$ref": "#/components/responses/AdminForbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API key",
+        "description": "Organization-scoped Stabilizer API key sent as an Authorization Bearer token."
+      },
+      "adminApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Admin-API-Key",
+        "description": "Platform admin key for `/v1/admin/*` endpoints."
+      }
+    },
+    "parameters": {
+      "KeyId": {
+        "name": "key_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ConfigId": {
+        "name": "config_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "FunctionId": {
+        "name": "function_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "JobId": {
+        "name": "job_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "OrgId": {
+        "name": "org_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Missing, invalid, or revoked Bearer key.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Authenticated, but not authorized for the requested scope.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "AdminForbidden": {
+        "description": "Missing or invalid X-Admin-API-Key.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Requested resource was not found.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Request body or request parameters failed validation.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "QuotaExhausted": {
+        "description": "Session quota for compile or extract was exhausted.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "BadRequest": {
+        "description": "Generic bad request response.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ErrorEnvelope": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "version"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "version": {
+            "type": "string",
+            "example": "v1"
+          }
+        }
+      },
+      "SupportedModelsResponse": {
+        "type": "object",
+        "required": [
+          "models"
+        ],
+        "properties": {
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "openai/gpt-5.4",
+              "openai/gpt-5.4-mini",
+              "openai/gpt-5.4-nano"
+            ]
+          }
+        }
+      },
+      "Org": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "default_llm_config_id": {
+            "type": "string"
+          },
+          "webhook_signing_key": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        }
+      },
+      "OrgPatchRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "default_llm_config_id": {
+            "type": "string"
+          },
+          "webhook_signing_key": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiKeyScope": {
+        "type": "string",
+        "enum": [
+          "full",
+          "extract_only",
+          "read_only"
+        ]
+      },
+      "ApiKeySummary": {
+        "type": "object",
+        "properties": {
+          "key_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ApiKeyScope"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "revoked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ApiKeyCreateRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ApiKeyScope"
+          }
+        }
+      },
+      "ApiKeyCreateResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiKeySummary"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "key_value": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "LlmConfig": {
+        "type": "object",
+        "properties": {
+          "config_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "default_model": {
+            "type": "string"
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "byok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LlmConfigCreateRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "api_key": {
+            "type": "string"
+          },
+          "default_model": {
+            "type": "string"
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "byok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LlmConfigPatchRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "api_key": {
+            "type": "string"
+          },
+          "default_model": {
+            "type": "string"
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "byok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CompileOptions": {
+        "type": "object",
+        "properties": {
+          "llm_config_id": {
+            "type": "string"
+          },
+          "compile_model": {
+            "type": "string"
+          },
+          "num_prompt_variations": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "optimized_prompts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CompileFunctionRequest": {
+        "type": "object",
+        "required": [
+          "prompt",
+          "json_structure"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "json_structure": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "training_data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "grounding_methods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "compile_options": {
+            "$ref": "#/components/schemas/CompileOptions"
+          },
+          "webhook_url": {
+            "type": "string"
+          },
+          "webhook_secret": {
+            "type": "string"
+          }
+        }
+      },
+      "PromptOptimizationOptions": {
+        "type": "object",
+        "properties": {
+          "llm_config_id": {
+            "type": "string"
+          },
+          "optimization_model": {
+            "type": "string"
+          },
+          "num_optimized_prompts": {
+            "type": "integer"
+          },
+          "max_training_examples": {
+            "type": "integer"
+          },
+          "max_bootstrapped_demos": {
+            "type": "integer"
+          },
+          "max_labeled_demos": {
+            "type": "integer"
+          },
+          "max_rounds": {
+            "type": "integer"
+          },
+          "num_candidate_programs": {
+            "type": "integer"
+          },
+          "variation_attempt_multiplier": {
+            "type": "integer"
+          }
+        }
+      },
+      "PromptOptimizationRequest": {
+        "type": "object",
+        "required": [
+          "prompt",
+          "json_structure",
+          "training_data"
+        ],
+        "properties": {
+          "prompt": {
+            "type": "string"
+          },
+          "json_structure": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "training_data": {
+            "type": "array",
+            "minItems": 5,
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "optimization_options": {
+            "$ref": "#/components/schemas/PromptOptimizationOptions"
+          },
+          "webhook_url": {
+            "type": "string"
+          },
+          "webhook_secret": {
+            "type": "string"
+          }
+        }
+      },
+      "FunctionSummary": {
+        "type": "object",
+        "properties": {
+          "function_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "grounding_methods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "created_at": {
+            "type": "string"
+          }
+        }
+      },
+      "FunctionPatchRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ExtractOptions": {
+        "type": "object",
+        "properties": {
+          "num_results": {
+            "type": "integer"
+          },
+          "temperature": {
+            "type": "number"
+          },
+          "prompt_override": {
+            "type": "string"
+          },
+          "extraction_model": {
+            "type": "string"
+          },
+          "llm_config_id": {
+            "type": "string"
+          }
+        }
+      },
+      "ExtractRequest": {
+        "type": "object",
+        "required": [
+          "function_id",
+          "source_text"
+        ],
+        "properties": {
+          "function_id": {
+            "type": "string"
+          },
+          "source_text": {
+            "type": "string"
+          },
+          "options": {
+            "$ref": "#/components/schemas/ExtractOptions"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "ground_truth": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "webhook_url": {
+            "type": "string"
+          },
+          "webhook_secret": {
+            "type": "string"
+          }
+        }
+      },
+      "JobAccepted": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "example": "queued"
+          }
+        }
+      },
+      "JobResource": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "completed_at": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "result": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "UsageSummary": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string"
+          },
+          "from": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "compile_count": {
+            "type": "integer"
+          },
+          "extract_count": {
+            "type": "integer"
+          },
+          "total_jobs": {
+            "type": "integer"
+          }
+        }
+      },
+      "EvaluateVarianceRequest": {
+        "type": "object",
+        "required": [
+          "extractions"
+        ],
+        "properties": {
+          "extractions": {
+            "type": "array",
+            "minItems": 3,
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "EvaluateGtRequest": {
+        "type": "object",
+        "required": [
+          "ground_truth",
+          "results"
+        ],
+        "properties": {
+          "ground_truth": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "results": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "AdminOrgCreateRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "default_llm_config_id": {
+            "type": "string"
+          }
+        }
+      },
+      "AdminOrgPatchRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "default_llm_config_id": {
+            "type": "string"
+          }
+        }
+      },
+      "AdminOrgResponse": {
+        "type": "object",
+        "properties": {
+          "org": {
+            "$ref": "#/components/schemas/Org"
+          }
+        }
+      },
+      "AdminOrgListResponse": {
+        "type": "object",
+        "properties": {
+          "orgs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Org"
+            }
+          }
+        }
+      },
+      "AdminOrgCreateResponse": {
+        "type": "object",
+        "properties": {
+          "org": {
+            "$ref": "#/components/schemas/Org"
+          },
+          "api_key": {
+            "$ref": "#/components/schemas/ApiKeyCreateResponse"
+          }
+        }
+      }
+    }
+  }
+}
