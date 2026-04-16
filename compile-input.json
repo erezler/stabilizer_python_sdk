@@ -81,5 +81,7 @@
     "coherence_overview",
     "stress_test"
   ],
-  "compile_options": {}
+  "compile_options": {
+    "num_prompt_variations": 3
+  }
 }
