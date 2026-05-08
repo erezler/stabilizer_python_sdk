@@ -26,14 +26,47 @@ class SupportsExtractClient(Protocol):
 
 @dataclass(frozen=True)
 class ExtractOptions:
-    num_results: int
+    num_results: int | None = None
+    temperature: float | None = None
+    prompt_override: str | None = None
+    extraction_model: str | None = None
+    llm_config_id: str | None = None
+    run_baseline_extraction: bool | None = None
 
     def as_payload(self) -> dict[str, Any]:
-        return {"num_results": self.num_results}
+        payload: dict[str, Any] = {}
+        if self.num_results is not None:
+            payload["num_results"] = self.num_results
+        if self.temperature is not None:
+            payload["temperature"] = self.temperature
+        if self.prompt_override not in (None, ""):
+            payload["prompt_override"] = self.prompt_override
+        if self.extraction_model not in (None, ""):
+            payload["extraction_model"] = self.extraction_model
+        if self.llm_config_id not in (None, ""):
+            payload["llm_config_id"] = self.llm_config_id
+        if self.run_baseline_extraction is not None:
+            payload["run_baseline_extraction"] = self.run_baseline_extraction
+        return payload
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, Any]) -> ExtractOptions:
-        return cls(num_results=int(payload["num_results"]))
+        return cls(
+            num_results=int(payload["num_results"]) if payload.get("num_results") is not None else None,
+            temperature=float(payload["temperature"]) if payload.get("temperature") is not None else None,
+            prompt_override=str(payload["prompt_override"]) if payload.get("prompt_override") is not None else None,
+            extraction_model=(
+                str(payload["extraction_model"])
+                if payload.get("extraction_model") is not None
+                else None
+            ),
+            llm_config_id=str(payload["llm_config_id"]) if payload.get("llm_config_id") is not None else None,
+            run_baseline_extraction=(
+                bool(payload["run_baseline_extraction"])
+                if payload.get("run_baseline_extraction") is not None
+                else None
+            ),
+        )
 
 
 @dataclass(frozen=True)
@@ -41,6 +74,8 @@ class ExtractRequest:
     function_id: str | None
     source_text: str
     options: ExtractOptions | Mapping[str, Any] | None = None
+    metadata: Mapping[str, Any] | None = None
+    ground_truth: Mapping[str, Any] | None = None
 
     def as_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -49,6 +84,10 @@ class ExtractRequest:
         }
         if self.options is not None:
             payload["options"] = _serialize_extract_options(self.options)
+        if self.metadata is not None:
+            payload["metadata"] = dict(self.metadata)
+        if self.ground_truth is not None:
+            payload["ground_truth"] = dict(self.ground_truth)
         return payload
 
     @classmethod
@@ -58,6 +97,12 @@ class ExtractRequest:
             function_id=str(payload["function_id"]) if payload.get("function_id") is not None else None,
             source_text=str(payload["source_text"]),
             options=ExtractOptions.from_payload(options) if isinstance(options, Mapping) else options,
+            metadata=dict(payload["metadata"]) if isinstance(payload.get("metadata"), Mapping) else None,
+            ground_truth=(
+                dict(payload["ground_truth"])
+                if isinstance(payload.get("ground_truth"), Mapping)
+                else None
+            ),
         )
 
 
@@ -67,11 +112,15 @@ def extract(
     function_id: str,
     source_text: str,
     options: ExtractOptions | Mapping[str, Any] | None = None,
+    metadata: Mapping[str, Any] | None = None,
+    ground_truth: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     request = ExtractRequest(
         function_id=function_id,
         source_text=source_text,
         options=options,
+        metadata=metadata,
+        ground_truth=ground_truth,
     )
     return client.extract(request.as_payload())
 
@@ -163,5 +212,7 @@ def _resolve_extract_request(
             function_id=function_id,
             source_text=candidate.source_text,
             options=candidate.options,
+            metadata=candidate.metadata,
+            ground_truth=candidate.ground_truth,
         )
     return candidate

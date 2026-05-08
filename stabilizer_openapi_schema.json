@@ -1152,6 +1152,22 @@
           "compile_model": {
             "type": "string"
           },
+          "use_agents_network": {
+            "type": "boolean"
+          },
+          "force_agents_network_sequential": {
+            "type": "boolean"
+          },
+          "min_field_pass_rate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "min_overall_pass_rate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
           "num_prompt_variations": {
             "type": "integer",
             "minimum": 1,
@@ -1332,6 +1348,10 @@
           },
           "llm_config_id": {
             "type": "string"
+          },
+          "run_baseline_extraction": {
+            "type": "boolean",
+            "description": "Also run a single raw extraction with the prompt as-is, without Stabilizer scoring or prompt variations."
           }
         }
       },

@@ -122,7 +122,6 @@ def test_config_step_creates_state_file_and_skips_when_result_exists(tmp_path: P
             "api_key": "provider-key",
             "default_model": "google/gemini-2.5-flash-lite",
             "is_default": True,
-            "byok": False,
         }
     ]
     assert state["steps"]["config"]["config_id"] == "cfg_123"
@@ -334,7 +333,6 @@ def test_run_all_runs_without_provider_api_key_for_byok_optional_workflow(
         "provider": "openai",
         "default_model": "google/gemini-2.5-flash-lite",
         "is_default": True,
-        "byok": False,
     }
     assert client.config_calls == [
         {
@@ -342,7 +340,6 @@ def test_run_all_runs_without_provider_api_key_for_byok_optional_workflow(
             "provider": "openai",
             "default_model": "google/gemini-2.5-flash-lite",
             "is_default": True,
-            "byok": False,
         }
     ]
     assert run_me.RunMeSettings().config_request.api_key == ""

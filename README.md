@@ -92,10 +92,10 @@ print(state)
 
 Use `*-input.json` for request bodies and `*-output.json` for saved standalone responses.
 
-`config-input.json` contains the LLM config request, including `name`, `provider`, `default_model`, `is_default`, `byok`, and optional `api_key`.
-`optimize-input.json` contains the prompt optimization request, including `prompt`, `json_structure`, and `training_data`.
-`compile-input.json` contains the function creation request, including the prompt, schema, and training data.
-`extract-input.json` contains the extraction request, including `function_id`, `source_text`, and optional `options`.
+`config-input.json` contains the LLM config request. Only `name` is required; `provider`, `default_model`, `base_url`, `is_default`, `byok`, and `api_key` are optional.
+`optimize-input.json` contains the prompt optimization request, including `prompt`, `json_structure`, `training_data`, and optional `optimization_options`.
+`compile-input.json` contains the function creation request. Only `prompt` and `json_structure` are required; `name`, `description`, `tags`, `training_data`, `grounding_methods`, and `compile_options` are optional.
+`extract-input.json` contains the extraction request, including `function_id`, `source_text`, and optional `options`, `metadata`, and `ground_truth`.
 
 Standalone CLI runs keep their latest saved responses under `.\temp_db\general\`. For async standalone commands, `optimize`, `compile`, and `extract` update those saved responses only when you poll a job, either with `py -m stabilizer_python_sdk poll` or by passing `--poll`. The workflow state used by `run_me` is stored separately under `.\temp_db\run_me\`.
 
@@ -185,7 +185,7 @@ Commands that create or update resources with request bodies require an explicit
 from stabilizer_python_sdk import StabilizerClient
 ```
 
-`StabilizerClient` covers the public, org, runtime, evaluation, management, and workflow routes.
+`StabilizerClient` covers the public, org, runtime, management, and workflow routes.
 
 The SDK is synchronous and dependency-free. It uses the Python standard library HTTP stack.
 

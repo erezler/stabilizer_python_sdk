@@ -7,7 +7,12 @@ from stabilizer_python_sdk import ResponseEnvelope, StabilizerClient
 from stabilizer_python_sdk.compile import CompileOptions, CompileRequest, compile_function
 from stabilizer_python_sdk.config import LLMConfigRequest, create_llm_config
 from stabilizer_python_sdk.extract import ExtractOptions, ExtractRequest, extract
-from stabilizer_python_sdk.optimize import OptimizeRequest, TrainingExample, optimize_prompt
+from stabilizer_python_sdk.optimize import (
+    OptimizeRequest,
+    PromptOptimizationOptions,
+    TrainingExample,
+    optimize_prompt,
+)
 
 
 class FakeWorkflowClient:
@@ -95,6 +100,25 @@ def test_config_module_accepts_explicit_parameters() -> None:
     ]
 
 
+def test_config_module_accepts_minimal_api_payload() -> None:
+    client = FakeWorkflowClient()
+
+    response = create_llm_config(
+        client,
+        name="Primary config",
+    )
+
+    assert response == {"config_id": "cfg_123"}
+    assert client.calls == [
+        (
+            "create_llm_config",
+            {
+                "name": "Primary config",
+            },
+        )
+    ]
+
+
 def test_optimize_module_accepts_explicit_parameters() -> None:
     client = FakeWorkflowClient()
 
@@ -123,6 +147,51 @@ def test_optimize_module_accepts_explicit_parameters() -> None:
                         "extracted_json": {"event_title": "Tomorrow Event"},
                     }
                 ],
+            },
+        )
+    ]
+
+
+def test_optimize_module_accepts_optimization_options() -> None:
+    client = FakeWorkflowClient()
+
+    response = optimize_prompt(
+        client,
+        prompt="Extract event details",
+        json_structure={"event_title": "string"},
+        training_data=[
+            TrainingExample(
+                source_text="The event is tomorrow.",
+                extracted_json={"event_title": "Tomorrow Event"},
+            )
+        ],
+        optimization_options=PromptOptimizationOptions(
+            llm_config_id="cfg_123",
+            optimization_model="openai/gpt-5.4",
+            num_optimized_prompts=4,
+            max_training_examples=10,
+        ),
+    )
+
+    assert response == {"job_id": "job_opt"}
+    assert client.calls == [
+        (
+            "optimize_prompt",
+            {
+                "prompt": "Extract event details",
+                "json_structure": {"event_title": "string"},
+                "training_data": [
+                    {
+                        "source_text": "The event is tomorrow.",
+                        "extracted_json": {"event_title": "Tomorrow Event"},
+                    }
+                ],
+                "optimization_options": {
+                    "llm_config_id": "cfg_123",
+                    "optimization_model": "openai/gpt-5.4",
+                    "num_optimized_prompts": 4,
+                    "max_training_examples": 10,
+                },
             },
         )
     ]
@@ -171,6 +240,45 @@ def test_compile_module_accepts_explicit_parameters() -> None:
     ]
 
 
+def test_compile_module_accepts_optional_name_and_extended_compile_options() -> None:
+    client = FakeWorkflowClient()
+
+    response = compile_function(
+        client,
+        prompt="Extract event details",
+        json_structure={"event_title": "string"},
+        compile_options=CompileOptions(
+            llm_config_id="cfg_123",
+            compile_model="openai/gpt-5.4",
+            use_agents_network=True,
+            force_agents_network_sequential=True,
+            min_field_pass_rate=0.75,
+            min_overall_pass_rate=0.8,
+            optimized_prompts=["Prompt A", "Prompt B"],
+        ),
+    )
+
+    assert response == {"job_id": "job_compile"}
+    assert client.calls == [
+        (
+            "compile_function",
+            {
+                "prompt": "Extract event details",
+                "json_structure": {"event_title": "string"},
+                "compile_options": {
+                    "llm_config_id": "cfg_123",
+                    "compile_model": "openai/gpt-5.4",
+                    "use_agents_network": True,
+                    "force_agents_network_sequential": True,
+                    "min_field_pass_rate": 0.75,
+                    "min_overall_pass_rate": 0.8,
+                    "optimized_prompts": ["Prompt A", "Prompt B"],
+                },
+            },
+        )
+    ]
+
+
 def test_extract_module_accepts_explicit_parameters() -> None:
     client = FakeWorkflowClient()
 
@@ -189,6 +297,47 @@ def test_extract_module_accepts_explicit_parameters() -> None:
                 "function_id": "fn_123",
                 "source_text": "hello",
                 "options": {"num_results": 3},
+            },
+        )
+    ]
+
+
+def test_extract_module_accepts_metadata_ground_truth_and_extended_options() -> None:
+    client = FakeWorkflowClient()
+
+    response = extract(
+        client,
+        function_id="fn_123",
+        source_text="hello",
+        options=ExtractOptions(
+            num_results=3,
+            temperature=0.2,
+            prompt_override="Use this prompt",
+            extraction_model="openai/gpt-5.4-mini",
+            llm_config_id="cfg_123",
+            run_baseline_extraction=True,
+        ),
+        metadata={"document_id": "doc_123"},
+        ground_truth={"field": "value"},
+    )
+
+    assert response == {"job_id": "job_extract"}
+    assert client.calls == [
+        (
+            "extract",
+            {
+                "function_id": "fn_123",
+                "source_text": "hello",
+                "options": {
+                    "num_results": 3,
+                    "temperature": 0.2,
+                    "prompt_override": "Use this prompt",
+                    "extraction_model": "openai/gpt-5.4-mini",
+                    "llm_config_id": "cfg_123",
+                    "run_baseline_extraction": True,
+                },
+                "metadata": {"document_id": "doc_123"},
+                "ground_truth": {"field": "value"},
             },
         )
     ]
@@ -248,7 +397,13 @@ def test_client_accepts_workflow_request_objects() -> None:
         ExtractRequest(
             function_id="fn_123",
             source_text="hello",
-            options=ExtractOptions(num_results=3),
+            options=ExtractOptions(
+                num_results=3,
+                prompt_override="Use this prompt",
+                run_baseline_extraction=True,
+            ),
+            metadata={"document_id": "doc_123"},
+            ground_truth={"field": "value"},
         )
     )
 
@@ -293,6 +448,12 @@ def test_client_accepts_workflow_request_objects() -> None:
         {
             "function_id": "fn_123",
             "source_text": "hello",
-            "options": {"num_results": 3},
+            "options": {
+                "num_results": 3,
+                "prompt_override": "Use this prompt",
+                "run_baseline_extraction": True,
+            },
+            "metadata": {"document_id": "doc_123"},
+            "ground_truth": {"field": "value"},
         },
     ]

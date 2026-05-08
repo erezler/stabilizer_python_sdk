@@ -8,7 +8,12 @@ from stabilizer_python_sdk.client import (
 from stabilizer_python_sdk.compile import CompileOptions, CompileRequest, compile_function
 from stabilizer_python_sdk.config import LLMConfigRequest, create_llm_config
 from stabilizer_python_sdk.extract import ExtractOptions, ExtractRequest, extract
-from stabilizer_python_sdk.optimize import OptimizeRequest, TrainingExample, optimize_prompt
+from stabilizer_python_sdk.optimize import (
+    OptimizeRequest,
+    PromptOptimizationOptions,
+    TrainingExample,
+    optimize_prompt,
+)
 
 __all__ = [
     "ApiError",
@@ -18,6 +23,7 @@ __all__ = [
     "ExtractRequest",
     "LLMConfigRequest",
     "OptimizeRequest",
+    "PromptOptimizationOptions",
     "ResponseEnvelope",
     "StabilizerClient",
     "TrainingExample",
@@ -28,4 +34,4 @@ __all__ = [
     "optimize_prompt",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

@@ -27,21 +27,85 @@ class SupportsCompileClient(Protocol):
 
 @dataclass(frozen=True)
 class CompileOptions:
-    num_prompt_variations: int
+    llm_config_id: str | None = None
+    compile_model: str | None = None
+    use_agents_network: bool | None = None
+    optimize_agents_network_prompts: bool | None = None
+    force_agents_network_sequential: bool | None = None
+    min_field_pass_rate: float | None = None
+    min_overall_pass_rate: float | None = None
+    num_prompt_variations: int | None = None
+    optimized_prompts: Sequence[str] = ()
 
     def as_payload(self) -> dict[str, Any]:
-        return {"num_prompt_variations": self.num_prompt_variations}
+        payload: dict[str, Any] = {}
+        if self.llm_config_id not in (None, ""):
+            payload["llm_config_id"] = self.llm_config_id
+        if self.compile_model not in (None, ""):
+            payload["compile_model"] = self.compile_model
+        if self.use_agents_network is not None:
+            payload["use_agents_network"] = self.use_agents_network
+        if self.optimize_agents_network_prompts is not None:
+            payload["optimize_agents_network_prompts"] = self.optimize_agents_network_prompts
+        if self.force_agents_network_sequential is not None:
+            payload["force_agents_network_sequential"] = self.force_agents_network_sequential
+        if self.min_field_pass_rate is not None:
+            payload["min_field_pass_rate"] = self.min_field_pass_rate
+        if self.min_overall_pass_rate is not None:
+            payload["min_overall_pass_rate"] = self.min_overall_pass_rate
+        if self.num_prompt_variations is not None:
+            payload["num_prompt_variations"] = self.num_prompt_variations
+        if self.optimized_prompts:
+            payload["optimized_prompts"] = list(self.optimized_prompts)
+        return payload
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, Any]) -> CompileOptions:
-        return cls(num_prompt_variations=int(payload["num_prompt_variations"]))
+        return cls(
+            llm_config_id=str(payload["llm_config_id"]) if payload.get("llm_config_id") is not None else None,
+            compile_model=str(payload["compile_model"]) if payload.get("compile_model") is not None else None,
+            use_agents_network=(
+                bool(payload["use_agents_network"])
+                if payload.get("use_agents_network") is not None
+                else None
+            ),
+            optimize_agents_network_prompts=(
+                bool(payload["optimize_agents_network_prompts"])
+                if payload.get("optimize_agents_network_prompts") is not None
+                else None
+            ),
+            force_agents_network_sequential=(
+                bool(payload["force_agents_network_sequential"])
+                if payload.get("force_agents_network_sequential") is not None
+                else None
+            ),
+            min_field_pass_rate=(
+                float(payload["min_field_pass_rate"])
+                if payload.get("min_field_pass_rate") is not None
+                else None
+            ),
+            min_overall_pass_rate=(
+                float(payload["min_overall_pass_rate"])
+                if payload.get("min_overall_pass_rate") is not None
+                else None
+            ),
+            num_prompt_variations=(
+                int(payload["num_prompt_variations"])
+                if payload.get("num_prompt_variations") is not None
+                else None
+            ),
+            optimized_prompts=[
+                str(prompt)
+                for prompt in payload.get("optimized_prompts", [])
+            ],
+        )
 
 
 @dataclass(frozen=True)
 class CompileRequest:
-    name: str
     prompt: str
     json_structure: dict[str, Any]
+    name: str | None = None
     description: str | None = None
     tags: Sequence[str] = ()
     training_data: Sequence[TrainingExample | Mapping[str, Any]] = ()
@@ -50,10 +114,11 @@ class CompileRequest:
 
     def as_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
-            "name": self.name,
             "prompt": self.prompt,
             "json_structure": self.json_structure,
         }
+        if self.name not in (None, ""):
+            payload["name"] = self.name
         if self.description is not None:
             payload["description"] = self.description
         if self.tags:
@@ -73,7 +138,7 @@ class CompileRequest:
             raise ValueError("Compile request training_data must be a sequence.")
         compile_options = payload.get("compile_options")
         return cls(
-            name=str(payload["name"]),
+            name=str(payload["name"]) if payload.get("name") is not None else None,
             description=str(payload["description"]) if payload.get("description") is not None else None,
             tags=list(payload.get("tags", [])),
             prompt=str(payload["prompt"]),
@@ -94,9 +159,9 @@ class CompileRequest:
 def compile_function(
     client: SupportsCompileClient,
     *,
-    name: str,
     prompt: str,
     json_structure: dict[str, Any],
+    name: str | None = None,
     description: str | None = None,
     tags: Sequence[str] = (),
     training_data: Sequence[TrainingExample | Mapping[str, Any]] = (),

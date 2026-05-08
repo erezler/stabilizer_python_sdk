@@ -11,6 +11,8 @@ from urllib.request import Request, urlopen
 DEFAULT_BASE_URL = "https://stabilizerapi.documentinsight.ai/api"
 DEFAULT_TIMEOUT = 30.0
 PUBLIC_PATHS = frozenset({"/v1/health", "/v1/supported-models"})
+
+
 @dataclass(frozen=True)
 class ResponseEnvelope:
     status_code: int
@@ -239,9 +241,3 @@ class StabilizerClient(_BaseClient):
 
     def get_usage(self, *, from_: str | None = None, to: str | None = None) -> dict[str, Any]:
         return self._request("GET", "/v1/usage", query={"from": from_, "to": to})
-
-    def evaluate_variance(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request("POST", "/v1/evaluate/variance", json_body=payload)
-
-    def evaluate_ground_truth(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request("POST", "/v1/evaluate/gt", json_body=payload)

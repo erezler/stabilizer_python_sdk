@@ -185,6 +185,9 @@ def test_non_successful_response_raises_api_error_with_status_and_payload() -> N
 
 def test_client_module_does_not_define_admin_routes() -> None:
     assert not hasattr(client_module, "StabilizerAdminClient")
+    assert not hasattr(client_module.StabilizerClient, "evaluate_variance")
+    assert not hasattr(client_module.StabilizerClient, "evaluate_ground_truth")
 
     client_source = Path(client_module.__file__).read_text(encoding="utf-8")
     assert "/v1/admin/" not in client_source
+    assert "/v1/evaluate/" not in client_source

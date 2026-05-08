@@ -22,33 +22,39 @@ class SupportsConfigClient(Protocol):
 @dataclass(frozen=True)
 class LLMConfigRequest:
     name: str
-    provider: str
-    default_model: str
+    provider: str | None = None
+    default_model: str | None = None
+    base_url: str | None = None
     api_key: str | None = None
-    is_default: bool = False
-    byok: bool = False
+    is_default: bool | None = None
+    byok: bool | None = None
 
     def as_payload(self) -> dict[str, Any]:
-        payload = {
-            "name": self.name,
-            "provider": self.provider,
-            "default_model": self.default_model,
-            "is_default": self.is_default,
-            "byok": self.byok,
-        }
+        payload: dict[str, Any] = {"name": self.name}
+        if self.provider not in (None, ""):
+            payload["provider"] = self.provider
+        if self.default_model not in (None, ""):
+            payload["default_model"] = self.default_model
+        if self.base_url not in (None, ""):
+            payload["base_url"] = self.base_url
         if self.api_key not in (None, ""):
             payload["api_key"] = self.api_key
+        if self.is_default is not None:
+            payload["is_default"] = self.is_default
+        if self.byok is not None:
+            payload["byok"] = self.byok
         return payload
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> LLMConfigRequest:
         return cls(
             name=str(payload["name"]),
-            provider=str(payload["provider"]),
+            provider=str(payload["provider"]) if payload.get("provider") is not None else None,
             api_key=str(payload["api_key"]) if payload.get("api_key") is not None else None,
-            default_model=str(payload["default_model"]),
-            is_default=bool(payload.get("is_default", False)),
-            byok=bool(payload.get("byok", False)),
+            default_model=str(payload["default_model"]) if payload.get("default_model") is not None else None,
+            base_url=str(payload["base_url"]) if payload.get("base_url") is not None else None,
+            is_default=bool(payload["is_default"]) if payload.get("is_default") is not None else None,
+            byok=bool(payload["byok"]) if payload.get("byok") is not None else None,
         )
 
 
@@ -56,17 +62,19 @@ def create_llm_config(
     client: SupportsConfigClient,
     *,
     name: str,
-    provider: str,
+    provider: str | None = None,
     api_key: str | None = None,
-    default_model: str,
-    is_default: bool = False,
-    byok: bool = False,
+    default_model: str | None = None,
+    base_url: str | None = None,
+    is_default: bool | None = None,
+    byok: bool | None = None,
 ) -> dict[str, Any]:
     request = LLMConfigRequest(
         name=name,
         provider=provider,
         api_key=api_key,
         default_model=default_model,
+        base_url=base_url,
         is_default=is_default,
         byok=byok,
     )
