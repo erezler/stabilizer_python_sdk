@@ -8,3 +8,6 @@ dist/
 build/
 *.egg-info/
 temp_db/
+compile_result.json
+convention_leads.log
+src/samples/compile_result.json

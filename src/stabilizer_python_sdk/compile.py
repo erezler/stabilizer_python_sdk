@@ -36,6 +36,7 @@ class CompileOptions:
     min_overall_pass_rate: float | None = None
     num_prompt_variations: int | None = None
     optimized_prompts: Sequence[str] = ()
+    compile_mode: str | None = None
 
     def as_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {}
@@ -57,6 +58,8 @@ class CompileOptions:
             payload["num_prompt_variations"] = self.num_prompt_variations
         if self.optimized_prompts:
             payload["optimized_prompts"] = list(self.optimized_prompts)
+        if self.compile_mode not in (None, ""):
+            payload["compile_mode"] = self.compile_mode
         return payload
 
     @classmethod
@@ -98,6 +101,7 @@ class CompileOptions:
                 str(prompt)
                 for prompt in payload.get("optimized_prompts", [])
             ],
+            compile_mode=str(payload["compile_mode"]) if payload.get("compile_mode") is not None else None,
         )
 
 

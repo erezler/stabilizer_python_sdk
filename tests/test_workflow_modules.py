@@ -255,6 +255,7 @@ def test_compile_module_accepts_optional_name_and_extended_compile_options() -> 
             min_field_pass_rate=0.75,
             min_overall_pass_rate=0.8,
             optimized_prompts=["Prompt A", "Prompt B"],
+            compile_mode="agents_network",
         ),
     )
 
@@ -273,6 +274,7 @@ def test_compile_module_accepts_optional_name_and_extended_compile_options() -> 
                     "min_field_pass_rate": 0.75,
                     "min_overall_pass_rate": 0.8,
                     "optimized_prompts": ["Prompt A", "Prompt B"],
+                    "compile_mode": "agents_network",
                 },
             },
         )

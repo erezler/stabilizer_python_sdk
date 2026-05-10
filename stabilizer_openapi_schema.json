@@ -1146,6 +1146,15 @@
       "CompileOptions": {
         "type": "object",
         "properties": {
+          "compile_mode": {
+            "type": "string",
+            "enum": [
+              "regular",
+              "optimized",
+              "agents_network",
+              "agents_network_prompt_optimization"
+            ]
+          },
           "llm_config_id": {
             "type": "string"
           },
