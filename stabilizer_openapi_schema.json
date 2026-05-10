@@ -1151,8 +1151,7 @@
             "enum": [
               "regular",
               "optimized",
-              "agents_network",
-              "agents_network_prompt_optimization"
+              "agents_network"
             ]
           },
           "llm_config_id": {
