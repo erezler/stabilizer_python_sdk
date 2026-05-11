@@ -11,3 +11,4 @@ temp_db/
 compile_result.json
 convention_leads.log
 src/samples/compile_result.json
+src/samples/convention/logs/convention_leads_raw_llm.log
