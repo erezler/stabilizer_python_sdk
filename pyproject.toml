@@ -9,6 +9,10 @@ description = "Standalone Python SDK for the Stabilizer API."
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Stabilizer" }]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
