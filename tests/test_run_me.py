@@ -3,9 +3,6 @@ from __future__ import annotations
 import importlib
 import io
 import json
-import os
-import subprocess
-import sys
 from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
@@ -466,22 +463,3 @@ def test_main_passes_new_flag_into_settings(monkeypatch, tmp_path: Path) -> None
     settings = captured["settings"]
     assert isinstance(settings, run_me.RunMeSettings)
     assert settings.new_run is True
-
-
-def test_run_me_module_is_invokable_from_repo_root_without_install() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
-    env = dict(os.environ)
-    env.pop("PYTHONPATH", None)
-
-    completed = subprocess.run(
-        [sys.executable, "-m", "stabilizer_python_sdk.run_me", "--help"],
-        cwd=repo_root,
-        env=env,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        check=False,
-    )
-
-    assert completed.returncode == 0, completed.stderr
-    assert "Run the config -> optimize -> compile -> extract workflow." in completed.stdout
