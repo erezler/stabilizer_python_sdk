@@ -332,6 +332,7 @@ def test_run_all_runs_without_provider_api_key_for_byok_optional_workflow(
         "name": "Primary config",
         "provider": "openai",
         "default_model": "google/gemini-2.5-flash-lite",
+        "compile_strength": "low",
         "is_default": True,
     }
     assert client.config_calls == [
@@ -339,6 +340,7 @@ def test_run_all_runs_without_provider_api_key_for_byok_optional_workflow(
             "name": "Primary config",
             "provider": "openai",
             "default_model": "google/gemini-2.5-flash-lite",
+            "compile_strength": "low",
             "is_default": True,
         }
     ]

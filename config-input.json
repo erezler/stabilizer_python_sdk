@@ -2,6 +2,7 @@
   "name": "Primary config",
   "provider": "openrouter",
   "default_model": "google/gemini-2.5-flash-lite",
+  "compile_strength": "low",
   "is_default": false,
   "byok": true
 }

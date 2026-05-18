@@ -92,7 +92,24 @@ print(state)
 
 Use `*-input.json` for request bodies and `*-output.json` for saved standalone responses.
 
-`config-input.json` contains the LLM config request. Only `name` is required; `provider`, `default_model`, `base_url`, `is_default`, `byok`, and `api_key` are optional.
+`config-input.json` contains the LLM config request. Only `name` is required; `provider`, `default_model`, `compile_strength`, `base_url`, `is_default`, `byok`, and `api_key` are optional. `compile_strength` picks one of four base-model tiers (`low`, `medium`, `high`, `max`) that the server resolves to a concrete model; it defaults to `low` server-side and acts as the default for both compile and grounding when not overridden per-request. `default_model` is used only by the baseline-extraction path.
+
+You can also pick a strength tier per request: pass `compile_options.compile_strength` on a compile and `options.grounding_strength` on an extract. Example compile fragment:
+
+```json
+"compile_options": {
+  "compile_strength": "high"
+}
+```
+
+Example extract fragment:
+
+```json
+"options": {
+  "num_results": 3,
+  "grounding_strength": "max"
+}
+```
 `optimize-input.json` contains the prompt optimization request, including `prompt`, `json_structure`, `training_data`, and optional `optimization_options`.
 `compile-input.json` contains the function creation request. Only `prompt` and `json_structure` are required; `name`, `description`, `tags`, `training_data`, `grounding_methods`, and `compile_options` are optional.
 `extract-input.json` contains the extraction request, including `function_id`, `source_text`, and optional `options`, `metadata`, and `ground_truth`.

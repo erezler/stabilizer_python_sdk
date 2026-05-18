@@ -24,6 +24,7 @@ class LLMConfigRequest:
     name: str
     provider: str | None = None
     default_model: str | None = None
+    compile_strength: str | None = None
     base_url: str | None = None
     api_key: str | None = None
     is_default: bool | None = None
@@ -35,6 +36,8 @@ class LLMConfigRequest:
             payload["provider"] = self.provider
         if self.default_model not in (None, ""):
             payload["default_model"] = self.default_model
+        if self.compile_strength not in (None, ""):
+            payload["compile_strength"] = self.compile_strength
         if self.base_url not in (None, ""):
             payload["base_url"] = self.base_url
         if self.api_key not in (None, ""):
@@ -52,6 +55,11 @@ class LLMConfigRequest:
             provider=str(payload["provider"]) if payload.get("provider") is not None else None,
             api_key=str(payload["api_key"]) if payload.get("api_key") is not None else None,
             default_model=str(payload["default_model"]) if payload.get("default_model") is not None else None,
+            compile_strength=(
+                str(payload["compile_strength"])
+                if payload.get("compile_strength") is not None
+                else None
+            ),
             base_url=str(payload["base_url"]) if payload.get("base_url") is not None else None,
             is_default=bool(payload["is_default"]) if payload.get("is_default") is not None else None,
             byok=bool(payload["byok"]) if payload.get("byok") is not None else None,
@@ -65,6 +73,7 @@ def create_llm_config(
     provider: str | None = None,
     api_key: str | None = None,
     default_model: str | None = None,
+    compile_strength: str | None = None,
     base_url: str | None = None,
     is_default: bool | None = None,
     byok: bool | None = None,
@@ -74,6 +83,7 @@ def create_llm_config(
         provider=provider,
         api_key=api_key,
         default_model=default_model,
+        compile_strength=compile_strength,
         base_url=base_url,
         is_default=is_default,
         byok=byok,

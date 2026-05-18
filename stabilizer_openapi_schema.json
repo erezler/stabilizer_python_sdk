@@ -1075,7 +1075,8 @@
             "type": "string"
           },
           "default_model": {
-            "type": "string"
+            "type": "string",
+            "description": "Model used at extraction time only. Compile is governed by `compile_strength`."
           },
           "base_url": {
             "type": "string"
@@ -1085,6 +1086,17 @@
           },
           "byok": {
             "type": "boolean"
+          },
+          "compile_strength": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "default": "low",
+            "description": "Base-model strength tier used for compile and inherited as the default for grounding at extraction time. Defaults to `low` if absent."
           }
         }
       },
@@ -1104,7 +1116,8 @@
             "type": "string"
           },
           "default_model": {
-            "type": "string"
+            "type": "string",
+            "description": "Model used at extraction time only. Compile is governed by `compile_strength`."
           },
           "base_url": {
             "type": "string"
@@ -1114,6 +1127,17 @@
           },
           "byok": {
             "type": "boolean"
+          },
+          "compile_strength": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "default": "low",
+            "description": "Base-model strength tier used for compile and inherited as the default for grounding at extraction time."
           }
         }
       },
@@ -1130,7 +1154,8 @@
             "type": "string"
           },
           "default_model": {
-            "type": "string"
+            "type": "string",
+            "description": "Model used at extraction time only. Compile is governed by `compile_strength`."
           },
           "base_url": {
             "type": "string"
@@ -1140,6 +1165,16 @@
           },
           "byok": {
             "type": "boolean"
+          },
+          "compile_strength": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "description": "Base-model strength tier used for compile and inherited as the default for grounding at extraction time."
           }
         }
       },
@@ -1157,8 +1192,15 @@
           "llm_config_id": {
             "type": "string"
           },
-          "compile_model": {
-            "type": "string"
+          "compile_strength": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "description": "Base-model strength tier to use for this compile. Overrides the LLM config's `compile_strength`. The server resolves the tier to a concrete provider/model server-side; clients never select a model directly. Sending the legacy `compile_model` field returns HTTP 400."
           },
           "use_agents_network": {
             "type": "boolean"
@@ -1352,7 +1394,18 @@
             "type": "string"
           },
           "extraction_model": {
-            "type": "string"
+            "type": "string",
+            "description": "Model used for baseline extraction only (when `run_baseline_extraction` is true). Independent of grounding, which is governed by `grounding_strength`."
+          },
+          "grounding_strength": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "max"
+            ],
+            "description": "Base-model strength tier for the grounding wrapper. Defaults to the compiled function's stored compile strength, then to the LLM config's `compile_strength`, then to `low`."
           },
           "llm_config_id": {
             "type": "string"

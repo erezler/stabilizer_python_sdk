@@ -249,7 +249,7 @@ def test_compile_module_accepts_optional_name_and_extended_compile_options() -> 
         json_structure={"event_title": "string"},
         compile_options=CompileOptions(
             llm_config_id="cfg_123",
-            compile_model="openai/gpt-5.4",
+            compile_strength="high",
             use_agents_network=True,
             force_agents_network_sequential=True,
             min_field_pass_rate=0.75,
@@ -268,7 +268,7 @@ def test_compile_module_accepts_optional_name_and_extended_compile_options() -> 
                 "json_structure": {"event_title": "string"},
                 "compile_options": {
                     "llm_config_id": "cfg_123",
-                    "compile_model": "openai/gpt-5.4",
+                    "compile_strength": "high",
                     "use_agents_network": True,
                     "force_agents_network_sequential": True,
                     "min_field_pass_rate": 0.75,

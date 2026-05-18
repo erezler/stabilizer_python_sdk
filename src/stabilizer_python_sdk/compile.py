@@ -28,7 +28,7 @@ class SupportsCompileClient(Protocol):
 @dataclass(frozen=True)
 class CompileOptions:
     llm_config_id: str | None = None
-    compile_model: str | None = None
+    compile_strength: str | None = None
     use_agents_network: bool | None = None
     force_agents_network_sequential: bool | None = None
     min_field_pass_rate: float | None = None
@@ -41,8 +41,8 @@ class CompileOptions:
         payload: dict[str, Any] = {}
         if self.llm_config_id not in (None, ""):
             payload["llm_config_id"] = self.llm_config_id
-        if self.compile_model not in (None, ""):
-            payload["compile_model"] = self.compile_model
+        if self.compile_strength not in (None, ""):
+            payload["compile_strength"] = self.compile_strength
         if self.use_agents_network is not None:
             payload["use_agents_network"] = self.use_agents_network
         if self.force_agents_network_sequential is not None:
@@ -63,7 +63,11 @@ class CompileOptions:
     def from_payload(cls, payload: Mapping[str, Any]) -> CompileOptions:
         return cls(
             llm_config_id=str(payload["llm_config_id"]) if payload.get("llm_config_id") is not None else None,
-            compile_model=str(payload["compile_model"]) if payload.get("compile_model") is not None else None,
+            compile_strength=(
+                str(payload["compile_strength"])
+                if payload.get("compile_strength") is not None
+                else None
+            ),
             use_agents_network=(
                 bool(payload["use_agents_network"])
                 if payload.get("use_agents_network") is not None

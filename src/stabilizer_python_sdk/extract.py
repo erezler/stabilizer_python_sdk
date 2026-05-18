@@ -30,6 +30,7 @@ class ExtractOptions:
     temperature: float | None = None
     prompt_override: str | None = None
     extraction_model: str | None = None
+    grounding_strength: str | None = None
     llm_config_id: str | None = None
     run_baseline_extraction: bool | None = None
 
@@ -43,6 +44,8 @@ class ExtractOptions:
             payload["prompt_override"] = self.prompt_override
         if self.extraction_model not in (None, ""):
             payload["extraction_model"] = self.extraction_model
+        if self.grounding_strength not in (None, ""):
+            payload["grounding_strength"] = self.grounding_strength
         if self.llm_config_id not in (None, ""):
             payload["llm_config_id"] = self.llm_config_id
         if self.run_baseline_extraction is not None:
@@ -58,6 +61,11 @@ class ExtractOptions:
             extraction_model=(
                 str(payload["extraction_model"])
                 if payload.get("extraction_model") is not None
+                else None
+            ),
+            grounding_strength=(
+                str(payload["grounding_strength"])
+                if payload.get("grounding_strength") is not None
                 else None
             ),
             llm_config_id=str(payload["llm_config_id"]) if payload.get("llm_config_id") is not None else None,

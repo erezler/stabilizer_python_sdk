@@ -82,6 +82,7 @@
     "stress_test"
   ],
   "compile_options": {
-    "num_prompt_variations": 3
+    "num_prompt_variations": 3,
+    "compile_strength": "low"
   }
 }
