@@ -34,6 +34,17 @@ def test_compile_options_rejects_legacy_compile_model_keyword() -> None:
         CompileOptions(compile_model="openai/gpt-5.4")  # type: ignore[call-arg]
 
 
+def test_compile_options_roundtrips_redundancy_count() -> None:
+    options = CompileOptions(redundancy_count=2)
+    payload = options.as_payload()
+    assert payload == {"redundancy_count": 2}
+    assert CompileOptions.from_payload(payload).redundancy_count == 2
+
+
+def test_compile_options_omits_redundancy_count_when_unset() -> None:
+    assert "redundancy_count" not in CompileOptions().as_payload()
+
+
 def test_extract_options_emits_grounding_strength() -> None:
     assert (
         ExtractOptions(grounding_strength="high").as_payload()["grounding_strength"] == "high"

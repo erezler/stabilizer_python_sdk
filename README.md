@@ -102,6 +102,8 @@ You can also pick a strength tier per request: pass `compile_options.compile_str
 }
 ```
 
+Compile mode `regular` also accepts `compile_options.redundancy_count` (1-5) to control the self-consistency fan-out per prompt variant. When omitted, it defaults to the extract-time `num_results` (3 if unset). Lower values cut both extraction and grounding cost roughly linearly. Sending `redundancy_count` under `optimized` or `agents_network` compile modes returns HTTP 400.
+
 Example extract fragment:
 
 ```json

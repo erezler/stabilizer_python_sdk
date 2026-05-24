@@ -34,6 +34,7 @@ class CompileOptions:
     min_field_pass_rate: float | None = None
     min_overall_pass_rate: float | None = None
     num_prompt_variations: int | None = None
+    redundancy_count: int | None = None
     optimized_prompts: Sequence[str] = ()
     compile_mode: str | None = None
 
@@ -53,6 +54,8 @@ class CompileOptions:
             payload["min_overall_pass_rate"] = self.min_overall_pass_rate
         if self.num_prompt_variations is not None:
             payload["num_prompt_variations"] = self.num_prompt_variations
+        if self.redundancy_count is not None:
+            payload["redundancy_count"] = self.redundancy_count
         if self.optimized_prompts:
             payload["optimized_prompts"] = list(self.optimized_prompts)
         if self.compile_mode not in (None, ""):
@@ -91,6 +94,11 @@ class CompileOptions:
             num_prompt_variations=(
                 int(payload["num_prompt_variations"])
                 if payload.get("num_prompt_variations") is not None
+                else None
+            ),
+            redundancy_count=(
+                int(payload["redundancy_count"])
+                if payload.get("redundancy_count") is not None
                 else None
             ),
             optimized_prompts=[
