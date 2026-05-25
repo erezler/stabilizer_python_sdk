@@ -1223,13 +1223,6 @@
             "minimum": 1,
             "maximum": 5
           },
-          "redundancy_count": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 5,
-            "nullable": true,
-            "description": "Self-consistency fan-out: number of samples generated per prompt variant during extraction. Defaults to the extract-time `num_results` (3 if unset). Only accepted in `regular` compile mode; `optimized`/`agents_network` reject it with HTTP 400. Lower values reduce both phase-1 (extraction) and phase-2 (evaluation) LLM cost roughly linearly."
-          },
           "optimized_prompts": {
             "type": "array",
             "items": {
