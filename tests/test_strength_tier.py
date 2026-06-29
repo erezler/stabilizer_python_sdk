@@ -52,6 +52,33 @@ def test_extract_options_roundtrips_extraction_model_and_grounding_strength_inde
     assert restored.grounding_strength == "low"
 
 
+def test_extract_options_emits_grounding_methods_and_minimal_run() -> None:
+    payload = ExtractOptions(
+        grounding_methods=["hard_grounding", "coverage_check"],
+        minimal_run=True,
+    ).as_payload()
+    assert payload == {
+        "grounding_methods": ["hard_grounding", "coverage_check"],
+        "minimal_run": True,
+    }
+
+
+def test_extract_options_omits_grounding_methods_and_minimal_run_when_unset() -> None:
+    assert ExtractOptions(num_results=3).as_payload() == {"num_results": 3}
+
+
+def test_extract_options_roundtrips_grounding_methods_and_minimal_run() -> None:
+    restored = ExtractOptions.from_payload(
+        {"grounding_methods": ["stress_test"], "minimal_run": False}
+    )
+    assert restored.grounding_methods == ["stress_test"]
+    assert restored.minimal_run is False
+
+
+def test_extract_options_from_payload_ignores_non_list_grounding_methods() -> None:
+    assert ExtractOptions.from_payload({"grounding_methods": "hard_grounding"}).grounding_methods is None
+
+
 def test_llm_config_request_emits_compile_strength() -> None:
     payload = LLMConfigRequest(name="primary", compile_strength="medium").as_payload()
     assert payload == {"name": "primary", "compile_strength": "medium"}

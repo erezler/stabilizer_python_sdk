@@ -110,6 +110,15 @@ Example extract fragment:
   "grounding_strength": "max"
 }
 ```
+
+Two extract options control the grounding work per request. `grounding_methods` is a list of public aliases (e.g. `hard_grounding`, `coverage_check`, `stress_test`) that overrides the method list saved at compile time for this run only; the mandatory runtime guards are always applied on top. `minimal_run` is a boolean that forces the cheapest possible run — no grounding methods, a single extraction with no variations, and no baseline extraction — and overrides `grounding_methods`, `num_results`, and `run_baseline_extraction`.
+
+```json
+"options": {
+  "minimal_run": true
+}
+```
+
 `optimize-input.json` contains the prompt optimization request, including `prompt`, `json_structure`, `training_data`, and optional `optimization_options`.
 `compile-input.json` contains the function creation request. Only `prompt` and `json_structure` are required; `name`, `description`, `tags`, `training_data`, `grounding_methods`, and `compile_options` are optional.
 `extract-input.json` contains the extraction request, including `function_id`, `source_text`, and optional `options`, `metadata`, and `ground_truth`.

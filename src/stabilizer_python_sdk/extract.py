@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
@@ -32,6 +32,8 @@ class ExtractOptions:
     extraction_model: str | None = None
     grounding_strength: str | None = None
     llm_config_id: str | None = None
+    grounding_methods: Sequence[str] | None = None
+    minimal_run: bool | None = None
     run_baseline_extraction: bool | None = None
 
     def as_payload(self) -> dict[str, Any]:
@@ -48,6 +50,10 @@ class ExtractOptions:
             payload["grounding_strength"] = self.grounding_strength
         if self.llm_config_id not in (None, ""):
             payload["llm_config_id"] = self.llm_config_id
+        if self.grounding_methods is not None:
+            payload["grounding_methods"] = list(self.grounding_methods)
+        if self.minimal_run is not None:
+            payload["minimal_run"] = self.minimal_run
         if self.run_baseline_extraction is not None:
             payload["run_baseline_extraction"] = self.run_baseline_extraction
         return payload
@@ -69,6 +75,15 @@ class ExtractOptions:
                 else None
             ),
             llm_config_id=str(payload["llm_config_id"]) if payload.get("llm_config_id") is not None else None,
+            grounding_methods=(
+                [str(method) for method in payload["grounding_methods"]]
+                if isinstance(payload.get("grounding_methods"), Sequence)
+                and not isinstance(payload.get("grounding_methods"), (str, bytes))
+                else None
+            ),
+            minimal_run=(
+                bool(payload["minimal_run"]) if payload.get("minimal_run") is not None else None
+            ),
             run_baseline_extraction=(
                 bool(payload["run_baseline_extraction"])
                 if payload.get("run_baseline_extraction") is not None

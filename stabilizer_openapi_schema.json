@@ -1410,6 +1410,17 @@
           "llm_config_id": {
             "type": "string"
           },
+          "grounding_methods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Overrides the grounding method list saved at compile time for this run only. Public aliases (e.g. `hard_grounding`, `coverage_check`, `stress_test`). The mandatory runtime guards are always applied on top. Ignored when `minimal_run` is true."
+          },
+          "minimal_run": {
+            "type": "boolean",
+            "description": "Cheapest possible run. Forces no grounding methods at all, a single extraction (no variations), and no baseline extraction. Overrides `grounding_methods`, `num_results`, and `run_baseline_extraction`."
+          },
           "run_baseline_extraction": {
             "type": "boolean",
             "description": "Also run a single raw extraction with the prompt as-is, without Stabilizer scoring or prompt variations."
