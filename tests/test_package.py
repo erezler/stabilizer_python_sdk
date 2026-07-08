@@ -5,7 +5,7 @@ import stabilizer_python_sdk.__main__ as cli
 
 
 def test_package_exposes_version() -> None:
-    assert stabilizer_python_sdk.__version__ == "0.4.0"
+    assert stabilizer_python_sdk.__version__ == "0.5.0"
 
 
 def test_module_entrypoint_main_returns_success_for_help(capsys) -> None:

@@ -194,6 +194,25 @@ class StabilizerClient(_BaseClient):
     def create_api_key(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._request("POST", "/v1/api-keys", json_body=payload)
 
+    def get_api_key(self, key_id: str) -> dict[str, Any]:
+        return self._request("GET", f"/v1/api-keys/{key_id}")
+
+    def update_api_key(self, key_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request("PATCH", f"/v1/api-keys/{key_id}", json_body=payload)
+
+    def get_api_key_usage(
+        self,
+        key_id: str,
+        *,
+        from_: str | None = None,
+        to: str | None = None,
+    ) -> dict[str, Any]:
+        return self._request(
+            "GET",
+            f"/v1/api-keys/{key_id}/usage",
+            query={"from": from_, "to": to},
+        )
+
     def revoke_api_key(self, key_id: str) -> None:
         self._request("DELETE", f"/v1/api-keys/{key_id}")
         return None
@@ -210,6 +229,9 @@ class StabilizerClient(_BaseClient):
     def delete_llm_config(self, config_id: str) -> None:
         self._request("DELETE", f"/v1/llm-configs/{config_id}")
         return None
+
+    def test_llm_config(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request("POST", "/v1/llm-configs/test", json_body=_coerce_json_body(payload))
 
     def list_functions(self, *, name: str | None = None, tag: str | None = None) -> list[dict[str, Any]]:
         return self._request("GET", "/v1/functions", query={"name": name, "tag": tag})
@@ -239,5 +261,23 @@ class StabilizerClient(_BaseClient):
     def get_job(self, job_id: str) -> dict[str, Any]:
         return self._request("GET", f"/v1/jobs/{job_id}")
 
-    def get_usage(self, *, from_: str | None = None, to: str | None = None) -> dict[str, Any]:
-        return self._request("GET", "/v1/usage", query={"from": from_, "to": to})
+    def get_usage(
+        self,
+        *,
+        from_: str | None = None,
+        to: str | None = None,
+        group_by: str | None = None,
+        limit: int | None = None,
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
+        return self._request(
+            "GET",
+            "/v1/usage",
+            query={
+                "from": from_,
+                "to": to,
+                "group_by": group_by,
+                "limit": limit,
+                "cursor": cursor,
+            },
+        )

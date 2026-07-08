@@ -182,17 +182,22 @@ py -m stabilizer_python_sdk org # get organization info
 py -m stabilizer_python_sdk org-update --payload-file .\org-update.json # update organization info
 py -m stabilizer_python_sdk api-keys # list api keys
 py -m stabilizer_python_sdk api-key-create --payload-file .\api-key-create.json # create api key
+py -m stabilizer_python_sdk api-key --key me # get api key summary with live budget usage ('me' = calling key)
+py -m stabilizer_python_sdk api-key-update --key key_123 --payload-file .\api-key-update.json # update budget / metadata / revoked
+py -m stabilizer_python_sdk api-key-usage --key key_123 --from 2026-04-01 --to 2026-04-15 # get per-key usage
 py -m stabilizer_python_sdk api-key-revoke --key key_123 # revoke api key
 py -m stabilizer_python_sdk configs # list configs
 py -m stabilizer_python_sdk config-update --config cfg_123 --payload-file .\config-update.json # update config
 py -m stabilizer_python_sdk config-delete --config cfg_123 # delete config
+py -m stabilizer_python_sdk config-test --payload-file .\config-test.json # verify a provider (BYOK) api key before saving it
 py -m stabilizer_python_sdk functions --name Invoice --tag billing # list compiled functions
 py -m stabilizer_python_sdk function --function fn_123 # get compiled function info
 py -m stabilizer_python_sdk function-update --function fn_123 --payload-file .\function-update.json # update compiled function metadata
 py -m stabilizer_python_sdk function-delete --function fn_123 # delete compiled function
 py -m stabilizer_python_sdk extractions # list previous extractions
 py -m stabilizer_python_sdk job --job job_123 # get job info
-py -m stabilizer_python_sdk usage --from 2026-04-01 --to 2026-04-15 # get usage info
+py -m stabilizer_python_sdk usage --from 2026-04-01 --to 2026-04-15 # get org usage info
+py -m stabilizer_python_sdk usage --from 2026-04-01 --to 2026-04-15 --group-by key --limit 200 --cursor key_123 # per-key bulk usage (requires a 'full' key)
 py -m stabilizer_python_sdk state latest # get current state summary
 ```
 

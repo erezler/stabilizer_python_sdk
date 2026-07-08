@@ -221,6 +221,95 @@
       }
     },
     "/v1/api-keys/{key_id}": {
+      "get": {
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "Get API key summary (with live budget usage)",
+        "description": "{key_id} accepts the literal 'me'. A key may read its own summary at any scope; reading another key requires a 'full' key.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/KeyId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Key summary.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeySummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "Update API key (budget / metadata / revoked)",
+        "description": "Marketplace lifecycle: upgrade, suspend (extract_limit 0), or offboard (revoked). Requires a 'full' key. {key_id} accepts 'me'.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/KeyId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiKeyPatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated key summary.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeySummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
       "delete": {
         "tags": [
           "API Keys"
@@ -306,6 +395,82 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LlmConfig"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/v1/llm-configs/test": {
+      "post": {
+        "tags": [
+          "LLM Configs"
+        ],
+        "summary": "Test a provider API key",
+        "description": "Verify that a BYOK provider API key authenticates before saving it in a config. Performs one minimal authenticated request to the provider and reports whether the key was accepted. Persists nothing.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "api_key"
+                ],
+                "properties": {
+                  "api_key": {
+                    "type": "string",
+                    "description": "The provider API key to verify."
+                  },
+                  "default_model": {
+                    "type": "string",
+                    "description": "Optional model to probe with; defaults to a known model."
+                  },
+                  "base_url": {
+                    "type": "string",
+                    "description": "Optional provider base URL; defaults to OpenRouter."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validation result. `valid` is true when the provider accepted the key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "valid": {
+                      "type": "boolean"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "missing_api_key",
+                        "authentication_failed",
+                        "unverified"
+                      ]
+                    }
+                  }
                 }
               }
             }
@@ -785,7 +950,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Lower bound for lexical created_at filtering."
+            "description": "Inclusive lower bound on created_at (half-open [from, to))."
           },
           {
             "in": "query",
@@ -793,7 +958,34 @@
             "schema": {
               "type": "string"
             },
-            "description": "Upper bound for lexical created_at filtering."
+            "description": "Exclusive upper bound on created_at (half-open [from, to))."
+          },
+          {
+            "in": "query",
+            "name": "group_by",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "key"
+              ]
+            },
+            "description": "Set to 'key' for per-key bulk usage (UsageByKey). Requires a 'full' key."
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Max keys per page for group_by=key (default 200)."
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Pagination cursor (key_id) for group_by=key."
           }
         ],
         "responses": {
@@ -802,10 +994,74 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UsageSummary"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/UsageSummary"
+                    },
+                    {
+                      "$ref": "#/components/schemas/UsageByKey"
+                    }
+                  ]
                 }
               }
             }
+          }
+        },
+        "description": "Bare call returns the org aggregate. With ?group_by=key returns bulk UsageByKey (one entry per key; requires a 'full' key). from/to are half-open [from, to) on created_at."
+      }
+    },
+    "/v1/api-keys/{key_id}/usage": {
+      "get": {
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "Get per-key usage",
+        "description": "PerKeyUsage over a half-open [from, to) window. {key_id} accepts 'me' (self-serve gate). Reading another key requires a 'full' key. With no from/to a budgeted key defaults to its current period.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/KeyId"
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Inclusive lower bound on created_at (ISO-8601 UTC)."
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Exclusive upper bound on created_at (ISO-8601 UTC)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Per-key usage.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerKeyUsage"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }
@@ -1030,6 +1286,27 @@
           },
           "revoked": {
             "type": "boolean"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Budget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "last_used_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "created_at of the key's most recent job, or null."
           }
         }
       },
@@ -1044,6 +1321,14 @@
           },
           "scope": {
             "$ref": "#/components/schemas/ApiKeyScope"
+          },
+          "budget": {
+            "$ref": "#/components/schemas/BudgetInput"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Free-form; echoed back in usage (e.g. tenant_id, marketplace_subscription_id)."
           }
         }
       },
@@ -1526,6 +1811,236 @@
           },
           "total_jobs": {
             "type": "integer"
+          }
+        }
+      },
+      "Budget": {
+        "type": "object",
+        "description": "Live budget block for a key (current period).",
+        "properties": {
+          "extract_limit": {
+            "type": "integer"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month",
+              "billing_cycle",
+              "total"
+            ]
+          },
+          "cycle_anchor": {
+            "type": "integer",
+            "description": "Day-of-month (1-28) anchoring a billing_cycle period."
+          },
+          "used": {
+            "type": "integer",
+            "description": "Billable extractions consumed this period."
+          },
+          "remaining": {
+            "type": "integer"
+          },
+          "exhausted": {
+            "type": "boolean"
+          },
+          "reset_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Start of the next period (ISO-8601 UTC); null for period 'total'."
+          }
+        }
+      },
+      "BudgetInput": {
+        "type": "object",
+        "required": [
+          "extract_limit"
+        ],
+        "description": "Per-period extract budget. Omit for an unlimited key.",
+        "properties": {
+          "extract_limit": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Billable extract jobs per period. 0 suspends the key (hard-stops via 429)."
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month",
+              "billing_cycle",
+              "total"
+            ],
+            "default": "month"
+          },
+          "cycle_anchor": {
+            "description": "Required for period 'billing_cycle': day-of-month (1-28) or an ISO date whose day is used.",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        }
+      },
+      "ApiKeyPatchRequest": {
+        "type": "object",
+        "description": "Lifecycle update: raise/lower/suspend the budget, edit metadata, or revoke.",
+        "properties": {
+          "budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BudgetInput"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Replace the budget; null clears it (unlimited)."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "revoked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PerKeyUsage": {
+        "type": "object",
+        "description": "Per-key usage over a half-open [from, to) window on created_at. extract_count is billable (succeeded) extractions only.",
+        "properties": {
+          "org_id": {
+            "type": "string"
+          },
+          "key_id": {
+            "type": "string"
+          },
+          "key_name": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ApiKeyScope"
+          },
+          "revoked": {
+            "type": "boolean"
+          },
+          "from": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "window": {
+            "type": "string"
+          },
+          "extract_count": {
+            "type": "integer",
+            "description": "Billable (succeeded) extractions - the bill driver."
+          },
+          "extract_failed_count": {
+            "type": "integer",
+            "description": "Not billed; for transparency/debugging."
+          },
+          "compile_count": {
+            "type": "integer"
+          },
+          "total_jobs": {
+            "type": "integer"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Budget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "by_model": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "model": {
+                  "type": "string"
+                },
+                "extract_count": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "by_function": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "function_id": {
+                  "type": "string"
+                },
+                "extract_count": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "last_used_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "UsageByKey": {
+        "type": "object",
+        "description": "Bulk per-key usage - one entry per key, cursor-paginated by key_id.",
+        "properties": {
+          "org_id": {
+            "type": "string"
+          },
+          "from": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "window": {
+            "type": "string"
+          },
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PerKeyUsage"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       }

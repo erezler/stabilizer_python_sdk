@@ -156,6 +156,125 @@ def test_walkthrough_flow_posts_expected_payloads_with_bearer_auth() -> None:
     assert transport.requests[3].json_body == extract_payload
 
 
+def test_get_api_key_uses_key_scoped_path_with_bearer_auth() -> None:
+    transport = FakeTransport(
+        [ResponseEnvelope(status_code=200, data={"key_id": "key_123", "revoked": False})]
+    )
+    client = StabilizerClient(api_key="sk_test", transport=transport)
+
+    response = client.get_api_key("key_123")
+
+    assert response == {"key_id": "key_123", "revoked": False}
+    assert transport.requests == [
+        RecordedRequest(
+            method="GET",
+            url="https://stabilizerapi.documentinsight.ai/api/v1/api-keys/key_123",
+            headers={"Authorization": "Bearer sk_test"},
+            json_body=None,
+            timeout=30.0,
+        )
+    ]
+
+
+def test_get_api_key_accepts_me_alias() -> None:
+    transport = FakeTransport([ResponseEnvelope(status_code=200, data={"key_id": "key_self"})])
+    client = StabilizerClient(api_key="sk_test", transport=transport)
+
+    client.get_api_key("me")
+
+    assert transport.requests[0].url == "https://stabilizerapi.documentinsight.ai/api/v1/api-keys/me"
+
+
+def test_update_api_key_patches_with_json_body() -> None:
+    transport = FakeTransport(
+        [ResponseEnvelope(status_code=200, data={"key_id": "key_123", "revoked": True})]
+    )
+    client = StabilizerClient(api_key="sk_test", transport=transport)
+
+    payload = {"budget": {"extract_limit": 0, "period": "month"}, "revoked": True}
+    response = client.update_api_key("key_123", payload)
+
+    assert response == {"key_id": "key_123", "revoked": True}
+    assert transport.requests == [
+        RecordedRequest(
+            method="PATCH",
+            url="https://stabilizerapi.documentinsight.ai/api/v1/api-keys/key_123",
+            headers={"Authorization": "Bearer sk_test", "Content-Type": "application/json"},
+            json_body=payload,
+            timeout=30.0,
+        )
+    ]
+
+
+def test_get_api_key_usage_forwards_from_and_to_query() -> None:
+    transport = FakeTransport(
+        [ResponseEnvelope(status_code=200, data={"key_id": "key_123", "extract_count": 4})]
+    )
+    client = StabilizerClient(api_key="sk_test", transport=transport)
+
+    response = client.get_api_key_usage("key_123", from_="2026-04-01", to="2026-04-15")
+
+    assert response == {"key_id": "key_123", "extract_count": 4}
+    assert transport.requests[0].method == "GET"
+    assert transport.requests[0].url == (
+        "https://stabilizerapi.documentinsight.ai/api/v1/api-keys/key_123/usage"
+        "?from=2026-04-01&to=2026-04-15"
+    )
+
+
+def test_get_api_key_usage_omits_absent_query_params() -> None:
+    transport = FakeTransport([ResponseEnvelope(status_code=200, data={"key_id": "key_123"})])
+    client = StabilizerClient(api_key="sk_test", transport=transport)
+
+    client.get_api_key_usage("key_123")
+
+    assert transport.requests[0].url == (
+        "https://stabilizerapi.documentinsight.ai/api/v1/api-keys/key_123/usage"
+    )
+
+
+def test_test_llm_config_posts_provider_key_verification_body() -> None:
+    transport = FakeTransport([ResponseEnvelope(status_code=200, data={"valid": True, "reason": "ok"})])
+    client = StabilizerClient(api_key="sk_test", transport=transport)
+
+    payload = {"api_key": "provider-key", "default_model": "google/gemini-2.5-flash-lite"}
+    response = client.test_llm_config(payload)
+
+    assert response == {"valid": True, "reason": "ok"}
+    assert transport.requests == [
+        RecordedRequest(
+            method="POST",
+            url="https://stabilizerapi.documentinsight.ai/api/v1/llm-configs/test",
+            headers={"Authorization": "Bearer sk_test", "Content-Type": "application/json"},
+            json_body=payload,
+            timeout=30.0,
+        )
+    ]
+
+
+def test_get_usage_forwards_group_by_limit_and_cursor() -> None:
+    transport = FakeTransport([ResponseEnvelope(status_code=200, data={"keys": [], "next_cursor": None})])
+    client = StabilizerClient(api_key="sk_test", transport=transport)
+
+    client.get_usage(from_="2026-04-01", to="2026-04-15", group_by="key", limit=50, cursor="key_123")
+
+    assert transport.requests[0].url == (
+        "https://stabilizerapi.documentinsight.ai/api/v1/usage"
+        "?from=2026-04-01&to=2026-04-15&group_by=key&limit=50&cursor=key_123"
+    )
+
+
+def test_get_usage_without_grouping_only_sends_date_window() -> None:
+    transport = FakeTransport([ResponseEnvelope(status_code=200, data={"total_jobs": 7})])
+    client = StabilizerClient(api_key="sk_test", transport=transport)
+
+    client.get_usage(from_="2026-04-01", to="2026-04-15")
+
+    assert transport.requests[0].url == (
+        "https://stabilizerapi.documentinsight.ai/api/v1/usage?from=2026-04-01&to=2026-04-15"
+    )
+
+
 def test_stabilizer_client_does_not_expose_wait_for_job() -> None:
     client = StabilizerClient(api_key="sk_test", transport=FakeTransport([]))
 

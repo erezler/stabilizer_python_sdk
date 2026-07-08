@@ -432,6 +432,34 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to a JSON file for the API key create request body.",
     )
 
+    api_key_get_parser = subparsers.add_parser(
+        "api-key",
+        help="Run GET /v1/api-keys/{key_id}.",
+    )
+    api_key_get_parser.add_argument("--api-key", help="Stabilizer API key.")
+    api_key_get_parser.add_argument("--key", required=True, help="Existing API key ID to fetch ('me' for the calling key).")
+
+    api_key_update_parser = subparsers.add_parser(
+        "api-key-update",
+        help="Run PATCH /v1/api-keys/{key_id} with a JSON payload file.",
+    )
+    api_key_update_parser.add_argument("--api-key", help="Stabilizer API key.")
+    api_key_update_parser.add_argument("--key", required=True, help="Existing API key ID to update ('me' for the calling key).")
+    api_key_update_parser.add_argument(
+        "--payload-file",
+        default=None,
+        help="Path to a JSON file for the API key update request body.",
+    )
+
+    api_key_usage_parser = subparsers.add_parser(
+        "api-key-usage",
+        help="Run GET /v1/api-keys/{key_id}/usage.",
+    )
+    api_key_usage_parser.add_argument("--api-key", help="Stabilizer API key.")
+    api_key_usage_parser.add_argument("--key", required=True, help="Existing API key ID ('me' for the calling key).")
+    api_key_usage_parser.add_argument("--from", dest="from_", default=None, help="Lower bound usage date filter.")
+    api_key_usage_parser.add_argument("--to", default=None, help="Upper bound usage date filter.")
+
     api_key_revoke_parser = subparsers.add_parser(
         "api-key-revoke",
         help="Run DELETE /v1/api-keys/{key_id}.",
@@ -471,6 +499,17 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     config_delete_parser.add_argument("--api-key", help="Stabilizer API key.")
     config_delete_parser.add_argument("--config", required=True, help="Existing config_id to delete.")
+
+    config_test_parser = subparsers.add_parser(
+        "config-test",
+        help="Run POST /v1/llm-configs/test to verify a provider API key.",
+    )
+    config_test_parser.add_argument("--api-key", help="Stabilizer API key.")
+    config_test_parser.add_argument(
+        "--payload-file",
+        default=None,
+        help="Path to a JSON file with the provider key test request body (api_key, optional default_model/base_url).",
+    )
 
     functions_parser = subparsers.add_parser("functions", help="Run GET /v1/functions.")
     functions_parser.add_argument("--api-key", help="Stabilizer API key.")
@@ -619,6 +658,24 @@ def _build_parser() -> argparse.ArgumentParser:
     usage_parser.add_argument("--api-key", help="Stabilizer API key.")
     usage_parser.add_argument("--from", dest="from_", default=None, help="Lower bound usage date filter.")
     usage_parser.add_argument("--to", default=None, help="Upper bound usage date filter.")
+    usage_parser.add_argument(
+        "--group-by",
+        dest="group_by",
+        default=None,
+        choices=["key"],
+        help="Set to 'key' for per-key bulk usage (requires a 'full' key).",
+    )
+    usage_parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Max keys per page when --group-by key is used (default 200 server-side).",
+    )
+    usage_parser.add_argument(
+        "--cursor",
+        default=None,
+        help="Pagination cursor (key_id) when --group-by key is used.",
+    )
 
     state_parser = subparsers.add_parser(
         "state",
@@ -685,6 +742,25 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_json(result)
             return 0
 
+        if parsed.command == "api-key":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            _print_json(client.get_api_key(parsed.key))
+            return 0
+
+        if parsed.command == "api-key-update":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            result = client.update_api_key(
+                parsed.key,
+                _read_payload(_require_payload_file(parsed.payload_file, command_name="api-key-update")),
+            )
+            _print_json(result)
+            return 0
+
+        if parsed.command == "api-key-usage":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            _print_json(client.get_api_key_usage(parsed.key, from_=parsed.from_, to=parsed.to))
+            return 0
+
         if parsed.command == "api-key-revoke":
             client = _make_client(api_key=_require_api_key(parsed.api_key))
             result = client.revoke_api_key(parsed.key)
@@ -724,6 +800,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         if parsed.command == "config-delete":
             client = _make_client(api_key=_require_api_key(parsed.api_key))
             result = client.delete_llm_config(parsed.config)
+            _print_json(result)
+            return 0
+
+        if parsed.command == "config-test":
+            client = _make_client(api_key=_require_api_key(parsed.api_key))
+            result = client.test_llm_config(
+                _apply_provider_api_key_default(
+                    _read_payload(_require_payload_file(parsed.payload_file, command_name="config-test"))
+                )
+            )
             _print_json(result)
             return 0
 
@@ -851,7 +937,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if parsed.command == "usage":
             client = _make_client(api_key=_require_api_key(parsed.api_key))
-            _print_json(client.get_usage(from_=parsed.from_, to=parsed.to))
+            _print_json(
+                client.get_usage(
+                    from_=parsed.from_,
+                    to=parsed.to,
+                    group_by=parsed.group_by,
+                    limit=parsed.limit,
+                    cursor=parsed.cursor,
+                )
+            )
             return 0
 
         if parsed.command == "state":

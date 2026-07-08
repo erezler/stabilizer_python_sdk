@@ -45,6 +45,24 @@ class FakeClient:
             "key_value": "sk_live_123",
         }
 
+    def get_api_key(self, key_id: str) -> dict[str, object]:
+        self.calls.append(("get_api_key", {"key_id": key_id}))
+        return {"key_id": key_id, "name": "Primary", "scope": "full", "revoked": False}
+
+    def update_api_key(self, key_id: str, payload: dict[str, object]) -> dict[str, object]:
+        self.calls.append(("update_api_key", {"key_id": key_id, "payload": payload}))
+        return {"key_id": key_id, **payload}
+
+    def get_api_key_usage(
+        self,
+        key_id: str,
+        *,
+        from_: str | None = None,
+        to: str | None = None,
+    ) -> dict[str, object]:
+        self.calls.append(("get_api_key_usage", {"key_id": key_id, "from": from_, "to": to}))
+        return {"key_id": key_id, "from": from_, "to": to, "extract_count": 4}
+
     def revoke_api_key(self, key_id: str) -> None:
         self.calls.append(("revoke_api_key", {"key_id": key_id}))
         return None
@@ -64,6 +82,10 @@ class FakeClient:
     def delete_llm_config(self, config_id: str) -> None:
         self.calls.append(("delete_llm_config", {"config_id": config_id}))
         return None
+
+    def test_llm_config(self, payload: dict[str, object]) -> dict[str, object]:
+        self.calls.append(("test_llm_config", payload))
+        return {"valid": True, "reason": "ok"}
 
     def list_functions(self, *, name: str | None = None, tag: str | None = None) -> list[dict[str, object]]:
         self.calls.append(("list_functions", {"name": name, "tag": tag}))
@@ -107,8 +129,21 @@ class FakeClient:
             return sequence.pop(0)
         return sequence[0]
 
-    def get_usage(self, *, from_: str | None = None, to: str | None = None) -> dict[str, object]:
-        self.calls.append(("get_usage", {"from": from_, "to": to}))
+    def get_usage(
+        self,
+        *,
+        from_: str | None = None,
+        to: str | None = None,
+        group_by: str | None = None,
+        limit: int | None = None,
+        cursor: str | None = None,
+    ) -> dict[str, object]:
+        self.calls.append(
+            (
+                "get_usage",
+                {"from": from_, "to": to, "group_by": group_by, "limit": limit, "cursor": cursor},
+            )
+        )
         return {"org_id": "org_123", "from": from_, "to": to, "total_jobs": 7}
 
     def evaluate_variance(self, payload: dict[str, object]) -> dict[str, object]:
@@ -313,6 +348,70 @@ def test_api_key_revoke_command_calls_client(
     assert fake_client.calls == [("revoke_api_key", {"key_id": "key_123"})]
 
 
+def test_api_key_command_fetches_summary(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["api-key", "--api-key", "sk_test", "--key", "me"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"key_id": "me", "name": "Primary", "scope": "full", "revoked": False}
+    assert fake_client.calls == [("get_api_key", {"key_id": "me"})]
+
+
+def test_api_key_update_command_loads_payload_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload_path = tmp_path / "api-key-update.json"
+    _write_json(payload_path, {"budget": {"extract_limit": 0}, "revoked": True})
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(
+        ["api-key-update", "--api-key", "sk_test", "--key", "key_123", "--payload-file", str(payload_path)]
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"key_id": "key_123", "budget": {"extract_limit": 0}, "revoked": True}
+    assert fake_client.calls == [
+        ("update_api_key", {"key_id": "key_123", "payload": {"budget": {"extract_limit": 0}, "revoked": True}})
+    ]
+
+
+def test_api_key_usage_command_forwards_query_arguments(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(
+        ["api-key-usage", "--api-key", "sk_test", "--key", "key_123", "--from", "2026-04-01", "--to", "2026-04-15"]
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {
+        "key_id": "key_123",
+        "from": "2026-04-01",
+        "to": "2026-04-15",
+        "extract_count": 4,
+    }
+    assert fake_client.calls == [
+        ("get_api_key_usage", {"key_id": "key_123", "from": "2026-04-01", "to": "2026-04-15"})
+    ]
+
+
 def test_configs_command_prints_json(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -364,6 +463,28 @@ def test_config_delete_command_calls_client(
     assert exit_code == 0
     assert json.loads(captured.out) is None
     assert fake_client.calls == [("delete_llm_config", {"config_id": "cfg_123"})]
+
+
+def test_config_test_command_verifies_provider_key(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    payload_path = tmp_path / "config-test.json"
+    _write_json(payload_path, {"api_key": "provider-key", "default_model": "google/gemini-2.5-flash-lite"})
+    monkeypatch.delenv("STABILIZER_PROVIDER_API_KEY", raising=False)
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(["config-test", "--api-key", "sk_test", "--payload-file", str(payload_path)])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert json.loads(captured.out) == {"valid": True, "reason": "ok"}
+    assert fake_client.calls == [
+        ("test_llm_config", {"api_key": "provider-key", "default_model": "google/gemini-2.5-flash-lite"})
+    ]
 
 
 def test_functions_command_forwards_filters(
@@ -488,7 +609,54 @@ def test_usage_command_forwards_query_arguments(
         "to": "2026-04-15",
         "total_jobs": 7,
     }
-    assert fake_client.calls == [("get_usage", {"from": "2026-04-01", "to": "2026-04-15"})]
+    assert fake_client.calls == [
+        (
+            "get_usage",
+            {"from": "2026-04-01", "to": "2026-04-15", "group_by": None, "limit": None, "cursor": None},
+        )
+    ]
+
+
+def test_usage_command_forwards_group_by_limit_and_cursor(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_client = FakeClient()
+    monkeypatch.setattr(cli, "_make_client", lambda api_key=None: fake_client)
+
+    exit_code = cli.main(
+        [
+            "usage",
+            "--api-key",
+            "sk_test",
+            "--from",
+            "2026-04-01",
+            "--to",
+            "2026-04-15",
+            "--group-by",
+            "key",
+            "--limit",
+            "50",
+            "--cursor",
+            "key_123",
+        ]
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert fake_client.calls == [
+        (
+            "get_usage",
+            {
+                "from": "2026-04-01",
+                "to": "2026-04-15",
+                "group_by": "key",
+                "limit": 50,
+                "cursor": "key_123",
+            },
+        )
+    ]
 
 
 @pytest.mark.parametrize("command", ["evaluate-variance", "evaluate-gt"])
