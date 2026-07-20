@@ -281,3 +281,66 @@ class StabilizerClient(_BaseClient):
                 "cursor": cursor,
             },
         )
+
+
+class StabilizerAdminClient(_BaseClient):
+    """Client for the ``/v1/admin/*`` routes used by billing and ops callers.
+
+    Every admin route is gated purely on the ``X-Admin-API-Key`` header. No org
+    Bearer token is read or required, so this client never sends one -- holding
+    the admin key alone is sufficient for the whole surface below.
+    """
+
+    def __init__(
+        self,
+        *,
+        admin_api_key: str,
+        base_url: str = DEFAULT_BASE_URL,
+        transport: Transport | None = None,
+        timeout: float = DEFAULT_TIMEOUT,
+    ) -> None:
+        super().__init__(base_url=base_url, transport=transport, timeout=timeout)
+        self.admin_api_key = admin_api_key
+
+    def _auth_headers(self, path: str) -> dict[str, str]:
+        return {"X-Admin-API-Key": self.admin_api_key}
+
+    def get_api_key(self, key_id: str) -> dict[str, Any]:
+        """Read any org's key. ``budget`` is None when the key is unlimited."""
+        return self._request("GET", f"/v1/admin/api-keys/{key_id}")
+
+    def update_api_key(self, key_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Patch budget, metadata, or revoked state. Unset fields are left alone."""
+        return self._request("PATCH", f"/v1/admin/api-keys/{key_id}", json_body=payload)
+
+    def get_api_key_usage(
+        self,
+        key_id: str,
+        *,
+        from_: str | None = None,
+        to: str | None = None,
+    ) -> dict[str, Any]:
+        """Usage over the half-open window ``[from, to)``.
+
+        The window defaults to the key's current budget period, or to all-time
+        when the key has no budget. Counts are window-scoped, but ``budget.used``
+        always reflects the current billing period.
+        """
+        return self._request(
+            "GET",
+            f"/v1/admin/api-keys/{key_id}/usage",
+            query={"from": from_, "to": to},
+        )
+
+    def revoke_api_key(self, key_id: str) -> None:
+        """Offboard a key. One-way -- prefer PATCH ``revoked`` when reversible."""
+        self._request("DELETE", f"/v1/admin/api-keys/{key_id}")
+        return None
+
+    def create_org_api_key(self, org_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Mint a key for an org. ``key_value`` is only ever returned here."""
+        return self._request(
+            "POST",
+            f"/v1/admin/orgs/{org_id}/api-keys",
+            json_body=payload,
+        )

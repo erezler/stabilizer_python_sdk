@@ -3,6 +3,7 @@
 from stabilizer_python_sdk.client import (
     ApiError,
     ResponseEnvelope,
+    StabilizerAdminClient,
     StabilizerClient,
 )
 from stabilizer_python_sdk.compile import CompileOptions, CompileRequest, compile_function
@@ -25,6 +26,7 @@ __all__ = [
     "OptimizeRequest",
     "PromptOptimizationOptions",
     "ResponseEnvelope",
+    "StabilizerAdminClient",
     "StabilizerClient",
     "TrainingExample",
     "__version__",

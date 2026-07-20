@@ -49,6 +49,20 @@ def test_readme_documents_sdk_usage_paths() -> None:
     assert "compile-output.json" in readme
 
     assert "run only the commands you need" in readme.lower()
-    assert "StabilizerAdminClient" not in readme
-    assert "/v1/admin/" not in readme
-    assert "admin api" not in readme.lower()
+
+
+def test_readme_documents_the_admin_client_as_library_only() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    assert "StabilizerAdminClient" in readme
+    assert "/v1/admin/" in readme
+    assert "X-Admin-API-Key" in readme
+    assert "never an `Authorization: Bearer` org token" in readme
+
+    admin_cli_lines = [
+        line
+        for line in readme.splitlines()
+        if line.strip().startswith("py -m stabilizer_python_sdk") and "admin" in line.lower()
+    ]
+    assert not admin_cli_lines
+    assert "There are no admin CLI commands" in readme

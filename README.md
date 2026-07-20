@@ -220,6 +220,31 @@ from stabilizer_python_sdk import StabilizerClient
 
 The SDK is synchronous and dependency-free. It uses the Python standard library HTTP stack.
 
+### Admin API
+
+`StabilizerAdminClient` covers the `/v1/admin/*` routes used by billing and ops callers. These routes are gated purely on the `X-Admin-API-Key` header, so this client sends **only** that header and never an `Authorization: Bearer` org token — the admin key alone is sufficient for the whole surface.
+
+```python
+from stabilizer_python_sdk import StabilizerAdminClient
+
+admin = StabilizerAdminClient(admin_api_key="YOUR_V1_ADMIN_API_KEY")
+
+summary = admin.get_api_key("key_123")          # budget is None when unlimited
+admin.update_api_key("key_123", {"budget": {"extract_limit": 20000, "period": "month"}})
+admin.update_api_key("key_123", {"budget": {"extract_limit": 0}})   # suspend
+admin.update_api_key("key_123", {"budget": None})                   # unlimited
+admin.update_api_key("key_123", {"revoked": True})                  # reversible offboard
+usage = admin.get_api_key_usage("key_123", from_="2026-07-01", to="2026-08-01")
+admin.revoke_api_key("key_123")                 # one-way offboard
+minted = admin.create_org_api_key("org_abc", {"name": "tenant-name"})
+```
+
+`create_org_api_key` is the only place `key_value` (the raw `sk-stab-...` secret) is ever returned — store it at creation.
+
+`get_api_key_usage` takes a half-open window `[from, to)`. It defaults to the key's current budget period, or all-time when the key has no budget. The returned counts are window-scoped, but `budget.used` always reflects the current billing period.
+
+There are no admin CLI commands; the admin key stays out of the CLI surface and these operations are library-only.
+
 ## Examples
 
 ```python

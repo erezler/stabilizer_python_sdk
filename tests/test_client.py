@@ -10,6 +10,7 @@ import stabilizer_python_sdk.client as client_module
 from stabilizer_python_sdk import (
     ApiError,
     ResponseEnvelope,
+    StabilizerAdminClient,
     StabilizerClient,
 )
 
@@ -302,11 +303,158 @@ def test_non_successful_response_raises_api_error_with_status_and_payload() -> N
     assert "Function not found" in str(exc_info.value)
 
 
-def test_client_module_does_not_define_admin_routes() -> None:
-    assert not hasattr(client_module, "StabilizerAdminClient")
+def test_client_module_does_not_define_evaluate_routes() -> None:
     assert not hasattr(client_module.StabilizerClient, "evaluate_variance")
     assert not hasattr(client_module.StabilizerClient, "evaluate_ground_truth")
 
     client_source = Path(client_module.__file__).read_text(encoding="utf-8")
-    assert "/v1/admin/" not in client_source
     assert "/v1/evaluate/" not in client_source
+
+
+def test_org_scoped_client_never_sends_the_admin_header() -> None:
+    transport = FakeTransport([ResponseEnvelope(status_code=200, data={"key_id": "key_9f2c"})])
+    client = StabilizerClient(api_key="sk_test", transport=transport)
+
+    client.get_api_key("key_9f2c")
+
+    assert "X-Admin-API-Key" not in transport.requests[0].headers
+
+
+def _admin_transport(data: object, *, status_code: int = 200) -> FakeTransport:
+    return FakeTransport([ResponseEnvelope(status_code=status_code, data=data)])
+
+
+def test_admin_client_sends_only_the_admin_key_header() -> None:
+    transport = _admin_transport({"key_id": "key_9f2c", "budget": None})
+    admin = StabilizerAdminClient(admin_api_key="admin_secret", transport=transport)
+
+    admin.get_api_key("key_9f2c")
+
+    headers = transport.requests[0].headers
+    assert headers["X-Admin-API-Key"] == "admin_secret"
+    assert "Authorization" not in headers
+
+
+def test_admin_get_api_key_uses_the_admin_route() -> None:
+    transport = _admin_transport(
+        {
+            "org_id": "org_abc",
+            "key_id": "key_9f2c",
+            "budget": {"extract_limit": 5000, "used": 120, "remaining": 4880},
+        }
+    )
+    admin = StabilizerAdminClient(admin_api_key="admin_secret", transport=transport)
+
+    response = admin.get_api_key("key_9f2c")
+
+    assert transport.requests[0].method == "GET"
+    assert transport.requests[0].url == (
+        "https://stabilizerapi.documentinsight.ai/api/v1/admin/api-keys/key_9f2c"
+    )
+    assert response["budget"]["remaining"] == 4880
+
+
+def test_admin_update_api_key_patches_the_admin_route_with_the_body() -> None:
+    transport = _admin_transport({"key_id": "key_9f2c", "budget": {"extract_limit": 20000}})
+    admin = StabilizerAdminClient(admin_api_key="admin_secret", transport=transport)
+
+    admin.update_api_key("key_9f2c", {"budget": {"extract_limit": 20000, "period": "month"}})
+
+    request = transport.requests[0]
+    assert request.method == "PATCH"
+    assert request.url == (
+        "https://stabilizerapi.documentinsight.ai/api/v1/admin/api-keys/key_9f2c"
+    )
+    assert request.json_body == {"budget": {"extract_limit": 20000, "period": "month"}}
+    assert "Authorization" not in request.headers
+
+
+def test_admin_update_api_key_sends_an_explicit_null_budget() -> None:
+    transport = _admin_transport({"key_id": "key_9f2c", "budget": None})
+    admin = StabilizerAdminClient(admin_api_key="admin_secret", transport=transport)
+
+    admin.update_api_key("key_9f2c", {"budget": None})
+
+    assert transport.requests[0].json_body == {"budget": None}
+
+
+def test_admin_get_api_key_usage_forwards_the_date_window() -> None:
+    transport = _admin_transport({"key_id": "key_9f2c", "extract_count": 120})
+    admin = StabilizerAdminClient(admin_api_key="admin_secret", transport=transport)
+
+    admin.get_api_key_usage("key_9f2c", from_="2026-07-01", to="2026-08-01")
+
+    request = transport.requests[0]
+    assert request.method == "GET"
+    assert request.url == (
+        "https://stabilizerapi.documentinsight.ai/api/v1/admin/api-keys/key_9f2c/usage"
+        "?from=2026-07-01&to=2026-08-01"
+    )
+    assert "Authorization" not in request.headers
+
+
+def test_admin_get_api_key_usage_omits_an_unset_window() -> None:
+    transport = _admin_transport({"key_id": "key_9f2c", "extract_count": 120})
+    admin = StabilizerAdminClient(admin_api_key="admin_secret", transport=transport)
+
+    admin.get_api_key_usage("key_9f2c")
+
+    assert transport.requests[0].url == (
+        "https://stabilizerapi.documentinsight.ai/api/v1/admin/api-keys/key_9f2c/usage"
+    )
+
+
+def test_admin_revoke_api_key_deletes_via_the_admin_route() -> None:
+    transport = _admin_transport(None, status_code=204)
+    admin = StabilizerAdminClient(admin_api_key="admin_secret", transport=transport)
+
+    assert admin.revoke_api_key("key_9f2c") is None
+
+    request = transport.requests[0]
+    assert request.method == "DELETE"
+    assert request.url == (
+        "https://stabilizerapi.documentinsight.ai/api/v1/admin/api-keys/key_9f2c"
+    )
+    assert "Authorization" not in request.headers
+
+
+def test_admin_create_org_api_key_posts_to_the_org_route() -> None:
+    transport = _admin_transport(
+        {"key_id": "key_new", "key_value": "sk-stab-secret"}, status_code=201
+    )
+    admin = StabilizerAdminClient(admin_api_key="admin_secret", transport=transport)
+
+    response = admin.create_org_api_key(
+        "org_abc",
+        {"name": "tenant-name", "budget": {"extract_limit": 1000, "period": "month"}},
+    )
+
+    request = transport.requests[0]
+    assert request.method == "POST"
+    assert request.url == (
+        "https://stabilizerapi.documentinsight.ai/api/v1/admin/orgs/org_abc/api-keys"
+    )
+    assert request.json_body == {
+        "name": "tenant-name",
+        "budget": {"extract_limit": 1000, "period": "month"},
+    }
+    assert "Authorization" not in request.headers
+    assert response["key_value"] == "sk-stab-secret"
+
+
+def test_admin_client_surfaces_not_found_as_api_error() -> None:
+    transport = _admin_transport(
+        {"error": {"code": "not_found", "message": "API key not found"}}, status_code=404
+    )
+    admin = StabilizerAdminClient(admin_api_key="admin_secret", transport=transport)
+
+    with pytest.raises(ApiError) as exc_info:
+        admin.get_api_key("key_missing")
+
+    assert exc_info.value.status_code == 404
+    assert "API key not found" in str(exc_info.value)
+
+
+def test_admin_client_does_not_expose_org_scoped_bulk_routes() -> None:
+    assert not hasattr(StabilizerAdminClient, "list_api_keys")
+    assert not hasattr(StabilizerAdminClient, "get_usage")
