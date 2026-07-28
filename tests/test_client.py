@@ -442,6 +442,96 @@ def test_admin_create_org_api_key_posts_to_the_org_route() -> None:
     assert response["key_value"] == "sk-stab-secret"
 
 
+def test_admin_create_org_posts_to_the_orgs_route() -> None:
+    transport = _admin_transport(
+        {
+            "org": {"org_id": "org_new", "name": "Acme", "external_id": "aad-tenant-1"},
+            "api_key": {"key_id": "key_1", "key_value": "sk-stab-bootstrap"},
+        },
+        status_code=201,
+    )
+    admin = StabilizerAdminClient(admin_api_key="admin_secret", transport=transport)
+
+    response = admin.create_org({"name": "Acme", "external_id": "aad-tenant-1"})
+
+    request = transport.requests[0]
+    assert request.method == "POST"
+    assert request.url == "https://stabilizerapi.documentinsight.ai/api/v1/admin/orgs"
+    assert request.json_body == {"name": "Acme", "external_id": "aad-tenant-1"}
+    assert "Authorization" not in request.headers
+    assert response["org"]["org_id"] == "org_new"
+    assert response["api_key"]["key_value"] == "sk-stab-bootstrap"
+
+
+def test_admin_create_org_idempotent_hit_returns_org_without_new_key() -> None:
+    """A repeat create_org for an external_id that already has an org comes
+    back 200 with api_key: None instead of minting a second key."""
+    transport = _admin_transport(
+        {"org": {"org_id": "org_existing", "external_id": "aad-tenant-1"}, "api_key": None},
+        status_code=200,
+    )
+    admin = StabilizerAdminClient(admin_api_key="admin_secret", transport=transport)
+
+    response = admin.create_org({"name": "Acme", "external_id": "aad-tenant-1"})
+
+    assert response["org"]["org_id"] == "org_existing"
+    assert response["api_key"] is None
+
+
+def test_admin_list_orgs_uses_the_orgs_route() -> None:
+    transport = _admin_transport(
+        {"orgs": [{"org_id": "org_1"}, {"org_id": "org_2"}]}
+    )
+    admin = StabilizerAdminClient(admin_api_key="admin_secret", transport=transport)
+
+    response = admin.list_orgs()
+
+    request = transport.requests[0]
+    assert request.method == "GET"
+    assert request.url == "https://stabilizerapi.documentinsight.ai/api/v1/admin/orgs"
+    assert "Authorization" not in request.headers
+    assert len(response["orgs"]) == 2
+
+
+def test_admin_get_org_uses_the_org_route() -> None:
+    transport = _admin_transport({"org": {"org_id": "org_abc", "name": "Acme"}})
+    admin = StabilizerAdminClient(admin_api_key="admin_secret", transport=transport)
+
+    response = admin.get_org("org_abc")
+
+    request = transport.requests[0]
+    assert request.method == "GET"
+    assert request.url == "https://stabilizerapi.documentinsight.ai/api/v1/admin/orgs/org_abc"
+    assert "Authorization" not in request.headers
+    assert response["org"]["name"] == "Acme"
+
+
+def test_admin_update_org_patches_the_org_route_with_the_body() -> None:
+    transport = _admin_transport({"org": {"org_id": "org_abc", "name": "Acme v2"}})
+    admin = StabilizerAdminClient(admin_api_key="admin_secret", transport=transport)
+
+    response = admin.update_org("org_abc", {"name": "Acme v2"})
+
+    request = transport.requests[0]
+    assert request.method == "PATCH"
+    assert request.url == "https://stabilizerapi.documentinsight.ai/api/v1/admin/orgs/org_abc"
+    assert request.json_body == {"name": "Acme v2"}
+    assert "Authorization" not in request.headers
+    assert response["org"]["name"] == "Acme v2"
+
+
+def test_admin_delete_org_deletes_via_the_org_route() -> None:
+    transport = _admin_transport(None, status_code=204)
+    admin = StabilizerAdminClient(admin_api_key="admin_secret", transport=transport)
+
+    assert admin.delete_org("org_abc") is None
+
+    request = transport.requests[0]
+    assert request.method == "DELETE"
+    assert request.url == "https://stabilizerapi.documentinsight.ai/api/v1/admin/orgs/org_abc"
+    assert "Authorization" not in request.headers
+
+
 def test_admin_client_surfaces_not_found_as_api_error() -> None:
     transport = _admin_transport(
         {"error": {"code": "not_found", "message": "API key not found"}}, status_code=404

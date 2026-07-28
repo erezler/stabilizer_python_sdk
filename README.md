@@ -237,9 +237,17 @@ admin.update_api_key("key_123", {"revoked": True})                  # reversible
 usage = admin.get_api_key_usage("key_123", from_="2026-07-01", to="2026-08-01")
 admin.revoke_api_key("key_123")                 # one-way offboard
 minted = admin.create_org_api_key("org_abc", {"name": "tenant-name"})
+
+created = admin.create_org({"name": "Acme", "external_id": "aad-tenant-1"})
+orgs = admin.list_orgs()                        # {"orgs": [...]}
+org = admin.get_org("org_abc")                  # {"org": {...}}
+admin.update_org("org_abc", {"name": "Acme Inc."})
+admin.delete_org("org_abc")                     # one-way; does not revoke the org's keys
 ```
 
-`create_org_api_key` is the only place `key_value` (the raw `sk-stab-...` secret) is ever returned — store it at creation.
+`create_org_api_key` and `create_org` are the only places `key_value` (the raw `sk-stab-...` secret) is ever returned — store it at creation.
+
+`create_org`'s `external_id` makes org provisioning idempotent: pass the caller's own tenant identifier (e.g. an Azure AD tenant id from a marketplace webhook), and a repeat call with the same `external_id` returns the org already provisioned for it — `api_key` is `None` in that response, since a key value can't be recovered after its original creation — instead of creating a duplicate org.
 
 `get_api_key_usage` takes a half-open window `[from, to)`. It defaults to the key's current budget period, or all-time when the key has no budget. The returned counts are window-scoped, but `budget.used` always reflects the current billing period.
 

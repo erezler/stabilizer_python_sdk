@@ -337,6 +337,35 @@ class StabilizerAdminClient(_BaseClient):
         self._request("DELETE", f"/v1/admin/api-keys/{key_id}")
         return None
 
+    def create_org(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Create a new org + bootstrap API key: ``{"org": ..., "api_key": ...}``.
+
+        Pass ``external_id`` (e.g. a marketplace tenant id) to make this call
+        idempotent: a repeat call with the same ``external_id`` returns the
+        org already provisioned for it instead of creating a duplicate org --
+        ``api_key`` is ``None`` in that case, since a key value can only ever
+        be returned once, at the org's original creation.
+        """
+        return self._request("POST", "/v1/admin/orgs", json_body=payload)
+
+    def list_orgs(self) -> dict[str, Any]:
+        """List every org: ``{"orgs": [...]}``."""
+        return self._request("GET", "/v1/admin/orgs")
+
+    def get_org(self, org_id: str) -> dict[str, Any]:
+        """Read one org's metadata: ``{"org": ...}``."""
+        return self._request("GET", f"/v1/admin/orgs/{org_id}")
+
+    def update_org(self, org_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Patch org metadata (e.g. ``name``, ``default_llm_config_id``)."""
+        return self._request("PATCH", f"/v1/admin/orgs/{org_id}", json_body=payload)
+
+    def delete_org(self, org_id: str) -> None:
+        """Delete an org's record. One-way. Does not revoke the org's API
+        keys server-side -- revoke those explicitly first if required."""
+        self._request("DELETE", f"/v1/admin/orgs/{org_id}")
+        return None
+
     def create_org_api_key(self, org_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Mint a key for an org. ``key_value`` is only ever returned here."""
         return self._request(
